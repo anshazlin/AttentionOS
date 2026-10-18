@@ -62,5 +62,10 @@ jobs:
             except Exception: answer={}
             print(f'{route} without owner token: HTTP {status}, JSON error={bool(answer.get("error"))}')
             if status!=401 or not answer.get('error'):raise SystemExit('FAIL: protected POST did not reject unauthorized request with JSON')
+          with urllib.request.urlopen(host+'/', timeout=20) as response:
+            page=response.read().decode('utf-8','replace')
+          if 'window.JARVISWake=' not in page or 'Enable hands-free' not in page:
+            raise SystemExit('FAIL: JARVISWake in deployed HTML is missing')
+          print('PASS: JARVISWake in deployed HTML, hands-free permission control available.')
           print('PASS: routing, AI credentials configured, unauthorized POST rejected, frontend served.')
           PY
