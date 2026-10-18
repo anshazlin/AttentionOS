@@ -7,10 +7,10 @@ const oid=x=>/^[a-zA-Z0-9_:-]{2,130}$/.test(String(x||""));
 module.exports=async function handler(req,res){
 res.setHeader("Cache-Control","no-store");res.setHeader("X-Content-Type-Options","nosniff");
 if(req.headers.origin){try{if(new URL(req.headers.origin).host!==req.headers.host)return json(res,403,"Wrong origin")}catch{return json(res,403,"Invalid origin")}}
-if(req.method==="GET"&&req.query.action==="status")return res.status(200).json({ok:true,connected:Boolean(process.env.ZERNIO_API_KEY&&process.env.OWNER_ACCESS_TOKEN),mode:"requires-login"});
+if(req.method==="GET"&&req.query.action==="status")return res.status(200).json({ok:true,connected:Boolean(process.env.ZERNIO_API_KEY&&process.env.ATTENTIONOS_OWNER_TOKEN),mode:"requires-login"});
 if(!["GET","POST"].includes(req.method))return json(res,405,"Method not allowed");
-if(!process.env.ZERNIO_API_KEY||!process.env.OWNER_ACCESS_TOKEN)return json(res,503,"Configure ZERNIO_API_KEY and OWNER_ACCESS_TOKEN in Vercel.");
-if(!tokenEq(req.headers["x-owner-token"],process.env.OWNER_ACCESS_TOKEN))return json(res,401,"Invalid owner access token");
+if(!process.env.ZERNIO_API_KEY||!process.env.ATTENTIONOS_OWNER_TOKEN)return json(res,503,"Configure ZERNIO_API_KEY and ATTENTIONOS_OWNER_TOKEN in Vercel.");
+if(!tokenEq(req.headers["x-owner-token"],process.env.ATTENTIONOS_OWNER_TOKEN))return json(res,401,"Invalid owner access token");
 const b=req.body||{};if(!b||typeof b!=="object"||Array.isArray(b))return json(res,400,"Invalid request body");
 if(req.method==="GET" && req.query.action==="accounts"){try{const a=await zernio("/accounts");return res.status(200).json({ok:true,accounts:a.accounts||a.data||[]})}catch(e){return json(res,e.status||502,e.message)}}
 if(req.method==="GET" && req.query.action==="automations"){try{const a=await zernio("/comment-automations");return res.status(200).json({ok:true,automations:a.automations||a.data||[]})}catch(e){return json(res,e.status||502,e.message)}}
