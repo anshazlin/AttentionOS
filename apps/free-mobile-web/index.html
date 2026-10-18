@@ -251,7 +251,7 @@ async function req(endpoint,obj){const resp=await fetch(endpoint,{method:'POST',
 function localVoices(){if(!window.speechSynthesis)return;app.voices=speechSynthesis.getVoices().filter(v=>/^en[-_]/i.test(v.lang));const el=by('jbLocal'),prior=el.value;while(el.options.length>1)el.remove(1);app.voices.forEach((v,i)=>{const o=new Option(v.name+' ('+v.lang+')',String(i));el.add(o)});if(prior)el.value=prior}
 function chosenVoice(){if(by('jbLocal').value!=='')return app.voices[Number(by('jbLocal').value)]||null;return [...app.voices].sort((a,b)=>score(b)-score(a))[0]||null}
 function score(v){const n=v.name.toLowerCase();return (/(male|david|daniel|george|guy|ryan|charon)/.test(n)?100:0)+(v.lang.toLowerCase().startsWith('en-gb')?25:0)+(v.name.toLowerCase().includes('google')?8:0)}
-function say(text){if(!app.voiceOn||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text).replace(/[*#]/g,'').slice(0,950));u.lang='en-GB';u.pitch=.78;u.rate=.93;const voice=chosenVoice();if(voice){u.voice=voice;u.lang=voice.lang}speechSynthesis.speak(u)}catch{status('This phone could not play the fallback voice. Text still works.')}}
+function say(text){if(!app.voiceOn)return;if(window.JARVISExternalTTS?.isEnabled()){window.JARVISExternalTTS.speak(text).catch(e=>status('Natural voice error: '+e.message));return}if(!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text).replace(/[*#]/g,'').slice(0,950));u.lang='en-GB';u.pitch=.78;u.rate=.93;const voice=chosenVoice();if(voice){u.voice=voice;u.lang=voice.lang}speechSynthesis.speak(u)}catch{status('This phone could not play the fallback voice. Text still works.')}}
 async function chat(message,spoken=false){
  const m=String(message||'').trim();if(!m||app.busy)return;
  app.busy=true;by('jbSend').disabled=true;add('user',m);status('JARVIS is processing your request...');
@@ -681,4 +681,5 @@ window.JARVISWake={enable:start,disable:stop,wake,phrase,isEnabled:()=>S.enabled
 update();
 })();
 </script>
+<script defer src="/voice-provider.js"></script>
 </body></html>
