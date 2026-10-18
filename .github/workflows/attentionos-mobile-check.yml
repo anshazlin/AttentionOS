@@ -34,3 +34,7 @@ jobs:
         run: node apps/free-mobile-web/test/api-smoke.cjs
       - name: Mock Gemini intelligence and Live tokens (no paid calls)
         run: node apps/free-mobile-web/test/jarvis-smoke.cjs
+      - name: Browser boot check — legacy button opens real JARVIS
+        run: |
+          npm install --prefix /tmp/attentionos-browsercheck --no-save --silent jsdom@27
+          NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/jarvis-browser.cjs
