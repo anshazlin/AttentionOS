@@ -78,9 +78,10 @@ export const configSchema = z.object({
    * - "api": the Claude Agent SDK with ANTHROPIC_API_KEY, billed per use.
    */
   runner: z.object({
-    engine: z.enum(["claude-code", "api"]).default("claude-code"),
+    engine: z.enum(["claude-code", "api", "codex"]).default("codex"),
     /** Path to the `claude` binary when it isn't on PATH. */
     claudeBin: z.string().optional(),
+    codexBin: z.string().optional(),
     /** Jobs the worker runs at once (default 2). */
     concurrency: z.number().int().min(1).max(16).optional(),
     /**
@@ -90,7 +91,7 @@ export const configSchema = z.object({
     userSlots: z.number().int().min(0).max(4).optional(),
     /** Heavy jobs (renders, transcription) at once, across all slots. Default: the same as concurrency. */
     maxHeavy: z.number().int().min(1).max(16).optional(),
-  }).default({ engine: "claude-code" }),
+  }).default({ engine: "codex" }),
 
   /** Model ids behind the aliases jobs use. Override when new models ship. */
   models: z.object({
