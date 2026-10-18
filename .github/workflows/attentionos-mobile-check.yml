@@ -26,3 +26,5 @@ jobs:
           if(!html.includes('src="/agent.js"'))throw Error('Agent script tag missing');
           console.log('OK: '+blocks.length+' script blocks checked');
           NODE
+      - name: Mock API smoke tests (no Instagram publishing)
+        run: node apps/free-mobile-web/test/api-smoke.cjs
