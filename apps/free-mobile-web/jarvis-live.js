@@ -158,5 +158,9 @@ async function runToolCalls(toolCall){
 button.onclick=()=>ws?disconnect():connect();
 j.by('jbNatural').addEventListener('change',()=>{if(ws){disconnect();j.status('Voice changed. Reconnect natural voice to hear the new voice.')}});
 j.by('jbClose').addEventListener('click',()=>disconnect());
-window.JARVISNative={ready:isReady,connect,disconnect,sendText,startMic,stopMic,activeMic,mute,runToolCalls};
+function primeAudio(){
+ // Called during first user gesture to unlock future spoken output on mobile browsers.
+ if(!outCtx){const A=window.AudioContext||window.webkitAudioContext;if(A){try{outCtx=new A({sampleRate:24000});outCtx.resume().catch(()=>{})}catch{}}}
+}
+window.JARVISNative={ready:isReady,connect,disconnect,sendText,startMic,stopMic,activeMic,mute,primeAudio,runToolCalls};
 })();
