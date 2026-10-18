@@ -40,3 +40,5 @@ jobs:
           NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/jarvis-browser.cjs
       - name: Test JARVIS tool outcomes (no real Instagram posting)
         run: NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/action-flow.cjs
+      - name: Simulated hands-free Gemini Live call and tool execution
+        run: NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/jarvis-live-call.cjs
