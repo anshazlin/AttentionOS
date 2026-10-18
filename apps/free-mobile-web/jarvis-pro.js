@@ -21,13 +21,71 @@ function localVoices(){if(!window.speechSynthesis)return;app.voices=speechSynthe
 function chosenVoice(){if(by('jbLocal').value!=='')return app.voices[Number(by('jbLocal').value)]||null;return [...app.voices].sort((a,b)=>score(b)-score(a))[0]||null}
 function score(v){const n=v.name.toLowerCase();return (/(male|david|daniel|george|guy|ryan|charon)/.test(n)?100:0)+(v.lang.toLowerCase().startsWith('en-gb')?25:0)+(v.name.toLowerCase().includes('google')?8:0)}
 function say(text){if(!app.voiceOn||!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text).replace(/[*#]/g,'').slice(0,950));u.lang='en-GB';u.pitch=.78;u.rate=.93;const voice=chosenVoice();if(voice){u.voice=voice;u.lang=voice.lang}speechSynthesis.speak(u)}catch{status('This phone could not play the fallback voice. Text still works.')}}
-async function chat(message,spoken=false){const m=String(message||'').trim();if(!m||app.busy)return;app.busy=true;by('jbSend').disabled=true;add('user',m);status('JARVIS is thinking...');try{const d=await req('/api/jarvis-chat',{message:m,history:app.history.slice(-12),context:modelContext()});add('model',d.reply);app.history.push({role:'user',text:m},{role:'model',text:d.reply});app.history=app.history.slice(-24);status('Ready for your next question, Master.');if(app.voiceOn&&!window.JARVISNative?.ready())say(d.reply);execute(d)}catch(e){add('model','I cannot reach my AI brain right now: '+e.message);status(e.message)}finally{app.busy=false;by('jbSend').disabled=false}}
-function execute(d){try{switch(d.action){
-case 'open_agent':window.AttentionAgent?.open(d.topic||'budget trending products');break;
-case 'show_analytics':window.AttentionAgent?.open();window.AttentionAgent?.analytics?.();break;
-case 'open_calendar':case 'open_content':case 'open_automations':{const target=d.action==='open_calendar'?'calendar':d.action==='open_content'?'pipeline':'automations';const element=document.querySelector('[data-nav="'+target+'"]');if(element){element.click();close()}else status('Requested page unavailable');break}
-case 'create_draft':if(d.draft&&typeof state!=='undefined'&&Array.isArray(state.posts)){const now=new Date().toISOString();state.posts.unshift({id:crypto.randomUUID?.()||String(Date.now()),title:d.draft.title,caption:d.draft.caption,platform:'Instagram',status:'draft',type:'Post',date:'',createdAt:now,updatedAt:now});if(typeof save==='function')save();if(typeof render==='function')render();add('model','Draft saved locally for review, Master. Nothing was posted.')}break;
-}}catch(e){status('App action not completed: '+e.message)}}
+async function chat(message,spoken=false){
+ const m=String(message||'').trim();if(!m||app.busy)return;
+ app.busy=true;by('jbSend').disabled=true;add('user',m);status('JARVIS is processing your request...');
+ try{
+   const d=await req('/api/jarvis-chat',{message:m,history:app.history.slice(-12),context:modelContext()});
+   const verified=await execute(d,m);
+   const answer=verified||d.reply||'No result was returned, Master.';
+   add('model',answer);
+   app.history.push({role:'user',text:m},{role:'model',text:answer});
+   app.history=app.history.slice(-24);
+   status('Ready, Master.');
+   if(app.voiceOn&&!window.JARVISNative?.ready())say(answer);
+ }catch(e){
+   const msg='The request was NOT completed: '+e.message;
+   add('model',msg);status(msg);
+   app.history.push({role:'user',text:m},{role:'model',text:msg});
+   if(app.voiceOn&&!window.JARVISNative?.ready())say(msg);
+ }finally{app.busy=false;by('jbSend').disabled=false}
+}
+async function execute(d,original){
+ switch(d.action){
+ case 'research_products':
+ case 'open_agent':{
+   if(!window.AttentionAgent?.planFor)throw Error('The research agent failed to load.');
+   status('Checking research sources and creating three concepts. Please wait...');
+   const result=await window.AttentionAgent.planFor(d.topic||'budget product ideas in India');
+   const titles=(result.sources||[]).slice(0,2).map(x=>x.title).filter(Boolean);
+   return 'Research finished, Master. I found '+result.sources.length+' public article leads and prepared '+result.ideas.length+' editable Reel concepts. '+(titles.length?'Sources include: '+titles.join('; ')+'. ':'')+'These are research leads, not verified best-selling products. Open JARVIS AGENT to review them.';
+ }
+ case 'prepare_reel':{
+   if(!window.AttentionAgent?.makeDraft)throw Error('The Reel editor is unavailable.');
+   status('Preparing a real local Reel draft...');
+   const r=await window.AttentionAgent.makeDraft(d.topic);
+   return 'I saved the Reel draft "'+r.title+'" to the local review pipeline, Master. It contains a script and caption, but no actual product footage yet. You must upload your own video or image before it can be published.';
+ }
+ case 'review_post':{
+   if(!window.AttentionAgent?.reviewPost)throw Error('Publishing review is unavailable.');
+   const r=window.AttentionAgent.reviewPost(original);
+   return 'I have NOT posted anything, Master. '+r.reason+(r.ready?' The media and draft are ready for your approval.':'');
+ }
+ case 'show_analytics':{
+   if(!window.AttentionAgent?.analytics)throw Error('Analytics screen is unavailable.');
+   window.AttentionAgent.open();await window.AttentionAgent.analytics();
+   return 'I requested real Instagram analytics from Zernio. Check the analytics panel for the returned metrics.';
+ }
+ case 'open_calendar':
+ case 'open_content':
+ case 'open_automations':{
+   const target=d.action==='open_calendar'?'calendar':d.action==='open_content'?'pipeline':'automations';
+   const element=document.querySelector('[data-nav="'+target+'"]');
+   if(!element)throw Error('The requested page is unavailable.');
+   element.click();return 'Opened the '+target+' section, Master.';
+ }
+ case 'create_draft':{
+   if(!d.draft)throw Error('AI did not return a valid draft.');
+   if(typeof state==='undefined'||!Array.isArray(state.posts))throw Error('Local content storage is unavailable.');
+   const now=new Date().toISOString();
+   state.posts.unshift({id:crypto.randomUUID?.()||String(Date.now()),title:d.draft.title,caption:d.draft.caption,platform:'Instagram',status:'draft',type:'Post',date:'',createdAt:now,updatedAt:now});
+   if(typeof save==='function')save();
+   if(typeof render==='function')render();
+   return 'Saved a text-only local draft called "'+d.draft.title+'", Master. It is NOT a video and nothing was published.';
+ }
+ }
+ return null;
+}
 function open(){document.getElementById('jarvisShade')?.classList.remove('show');shade.classList.add('open');if(by('ownerToken')?.value)by('jbOwner').value=by('ownerToken').value;localVoices();refreshStatus()}
 function close(){stopMic();shade.classList.remove('open');window.speechSynthesis?.cancel()}
 async function refreshStatus(){try{const r=await fetch('/api/jarvis-chat'),d=await r.json();by('jbBadge').textContent=d.configured?'Real Gemini AI configured':'Gemini API missing';status(d.configured?'Gemini brain ready. Enter your owner code and talk.':'AI key not configured for this deployment.')}catch{by('jbBadge').textContent='Status unknown'}}
