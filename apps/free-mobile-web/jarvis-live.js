@@ -2,32 +2,40 @@
 'use strict';
 const j=window.JARVISBetter;if(!j)return;
 const mount=j.by('jbLiveMount');
-const button=document.createElement('button');button.id='jLiveButton';button.className='jbBtn green';button.textContent='✨ Connect natural male voice';mount.appendChild(button);
-const sub=document.createElement('span');sub.className='jbSmall';sub.textContent='Native Gemini Live audio · Charon voice default · tap mic to speak';mount.appendChild(sub);
+const button=document.createElement('button');button.id='jLiveButton';button.className='jbBtn green';button.textContent='📞 Start natural JARVIS call';mount.appendChild(button);
+const sub=document.createElement('span');sub.className='jbSmall';sub.textContent='Two-way Gemini Live conversation · hands-free while connected · tap End call when finished';mount.appendChild(sub);
 let ws=null,ready=false,stream=null,micCtx=null,outCtx=null,processor=null,playAt=0,transcript='',inputTranscript='';
 const isReady=()=>Boolean(ws&&ws.readyState===WebSocket.OPEN&&ready);
 const activeMic=()=>Boolean(stream);
-function resetText(){button.textContent='✨ Connect natural male voice'}
+function resetText(){button.textContent='📞 Start natural JARVIS call'}
 async function connect(){
  try{
   j.status('Requesting a secure Gemini Live session...');
   const info=await j.req('/api/jarvis-live',{});
   const uri='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token='+encodeURIComponent(info.token);
-  ws=new WebSocket(uri);ready=false;transcript='';inputTranscript='';button.textContent='⏹ Disconnect natural voice';
+  ws=new WebSocket(uri);ready=false;transcript='';inputTranscript='';button.textContent='⏹ End JARVIS call';j.by('jbMic').textContent='⏳ Connecting call...';
   ws.onopen=()=>{
    const voice=j.by('jbNatural').value||'Charon';
    ws.send(JSON.stringify({setup:{model:'models/'+info.model,
     generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice}}}},
     outputAudioTranscription:{},inputAudioTranscription:{},
-    systemInstruction:{parts:[{text:'You are JARVIS, a highly capable conversational AI. Address the user as Master, naturally and respectfully. You speak with a calm deep masculine voice, friendly and confident, not robotic. You can reason and chat about nearly any topic, follow up naturally, and remember earlier turns in this session. You assist a small brand called TrendWale. Do not claim to have posted, messaged, paid, scheduled, or researched data in other apps unless the user explicitly performed those tasks through the interface. For actions, ask the user to use the review and approval workflows. Keep spoken responses concise unless asked for details.'}]}
+    tools:[{functionDeclarations:[
+      {name:'research_products',description:'Actually research public source leads and prepare three product Reel concepts in the AttentionOS editor. Use for finding trending products or research, instead of claiming the research was launched.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A specific product niche or category, such as budget home organizers or phone accessories'}}}},
+      {name:'prepare_reel_draft',description:'Create and save one REAL local Reel script-and-caption draft in AttentionOS, not a finished video. Do not claim video generation or publication.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A niche or product topic'}}}},
+      {name:'review_instagram_post',description:'Open Instagram review in AttentionOS and report if media is missing. Never publish without user final confirmation.',parameters:{type:'OBJECT',properties:{caption:{type:'STRING',description:'Desired caption text, if any'}}}},
+      {name:'show_instagram_analytics',description:'Fetch actual Instagram analytics from connected Zernio without guessing metrics',parameters:{type:'OBJECT',properties:{}}},
+      {name:'open_calendar',description:'Show content calendar inside AttentionOS',parameters:{type:'OBJECT',properties:{}}}
+    ]}],
+    systemInstruction:{parts:[{text:'You are JARVIS, a highly capable conversational AI. Address the user as Master, naturally and respectfully. You speak with a calm deep masculine voice, friendly and confident, not robotic. You can reason and chat about nearly any topic, follow up naturally, and remember earlier turns in this session. You assist a small brand called TrendWale. Use your declared tools to perform TrendWale research, save Reel drafts, open Instagram publish review, and read analytics when Master asks; report the result after the tool responds. NEVER say you completed research or a Reel before the tool finishes. Research provides news leads, not verified viral products. A script draft is NOT a rendered video. If asked to post now, call review_instagram_post; the app must confirm media and explicit publishing approval. Never claim external publishing happened until Zernio confirms. For any action not supported by a tool, state limitations. Keep spoken responses concise unless asked for details.'}]}
    }}));
    j.status('Connecting natural voice. Please wait...');
   };
   ws.onmessage=async e=>{
    try{
     const raw=e.data instanceof Blob?await e.data.text():e.data, msg=JSON.parse(raw);
-    if(msg.setupComplete){ready=true;j.status('Native Gemini voice connected. Tap the microphone and talk, Master.');return}
+    if(msg.setupComplete){ready=true;j.status('Gemini call connected. Starting microphone...');await startMic();return}
     if(msg.error){j.status('Gemini Live: '+(msg.error.message||'Service error'));return}
+    if(msg.toolCall){await runToolCalls(msg.toolCall);return}
     if(msg.serverContent){
      const c=msg.serverContent;
      if(c.inputTranscription?.text)inputTranscript+=c.inputTranscription.text;
@@ -83,8 +91,8 @@ async function startMic(){
    const payload=encodePCM(e.inputBuffer.getChannelData(0),micCtx.sampleRate);
    try{ws.send(JSON.stringify({realtimeInput:{audio:{data:payload,mimeType:'audio/pcm;rate=16000'}}}))}catch{}
   };
-  j.by('jbMic').textContent='⏹ Finish speaking';j.by('jbOrb').classList.add('active');
-  j.status('Listening through Gemini Live. Tap Finish speaking when done.');
+  j.by('jbMic').textContent='☎️ End JARVIS call';j.by('jbOrb').classList.add('active');
+  j.status('In call with JARVIS. Speak naturally, pause for a response, and tap End call when finished.');
  }catch(e){stopMic();j.status('Microphone could not start: '+e.message)}
 }
 function stopMic(){
@@ -92,7 +100,7 @@ function stopMic(){
  if(processor){processor.onaudioprocess=null;processor.disconnect();processor=null}
  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
  if(micCtx){micCtx.close().catch(()=>{});micCtx=null}
- j.by('jbMic').textContent='🎙 Talk to JARVIS';
+ j.by('jbMic').textContent='📞 Start JARVIS call';
  j.by('jbOrb').classList.remove('active');
  if(had&&isReady()){ws.send(JSON.stringify({realtimeInput:{audioStreamEnd:true}}));j.status('Working on your spoken request...')}
 }
@@ -106,10 +114,46 @@ function mute(){
  if(outCtx){outCtx.close().catch(()=>{});outCtx=null;playAt=0}
 }
 function disconnect(){
- stopMic();if(ws){try{ws.close(1000,'user disconnected')}catch{}}ws=null;ready=false;transcript='';inputTranscript='';mute();resetText();j.status('Natural voice stopped. Gemini AI chat is still available.')
+ stopMic();if(ws){try{ws.close(1000,'user disconnected')}catch{}}ws=null;ready=false;transcript='';inputTranscript='';mute();resetText();j.status('Call ended. Gemini AI text chat remains available.')
 }
+
+async function runToolCalls(toolCall){
+ const responses=[];
+ for(const fc of toolCall.functionCalls||[]){
+  const topic=String(fc.args?.topic||'affordable useful products for Indian shoppers').slice(0,230);
+  try{
+   j.status('Running '+fc.name.replace(/_/g,' ')+'...');
+   let result;
+   if(fc.name==='research_products'){
+    if(!window.AttentionAgent?.planFor)throw Error('Research tools are unavailable');
+    const r=await window.AttentionAgent.planFor(topic);
+    result={ok:true,researchLeadCount:r.sources.length,sourceTitles:r.sources.slice(0,3).map(s=>s.title),reelConceptCount:r.ideas.length,note:'Public article leads are not verified viral or best-selling products. Scripts require review; no post published.'};
+   }else if(fc.name==='prepare_reel_draft'){
+    if(!window.AttentionAgent?.makeDraft)throw Error('Reel draft editor is unavailable');
+    const d=await window.AttentionAgent.makeDraft(topic);
+    result={ok:true,draftTitle:d.title,savedLocally:true,videoRendered:false,published:false,needsOriginalMedia:d.needsMedia,note:'Created a script/caption draft, not a finished Reel video.'};
+   }else if(fc.name==='review_instagram_post'){
+    if(!window.AttentionAgent?.reviewPost)throw Error('Instagram review panel is unavailable');
+    const d=window.AttentionAgent.reviewPost('caption '+String(fc.args?.caption||'').slice(0,2200));
+    result={ok:true,...d,published:false,note:'Review is not publication. User must approve Zernio submission with actual media.'};
+   }else if(fc.name==='show_instagram_analytics'){
+    if(!window.AttentionAgent?.analytics)throw Error('Analytics unavailable');
+    window.AttentionAgent.open();
+    await window.AttentionAgent.analytics();
+    result={ok:true,note:'Analytics panel opened and request completed; read the data there, do not invent numbers.'};
+   }else if(fc.name==='open_calendar'){
+    const nav=document.querySelector('[data-nav="calendar"]');if(!nav)throw Error('Calendar screen not found');
+    nav.click();result={ok:true,calendarOpened:true};
+   }else throw Error('Unknown tool');
+   responses.push({id:fc.id,name:fc.name,response:{result}});
+  }catch(e){responses.push({id:fc.id,name:fc.name,response:{error:String(e.message||e)}})}
+ }
+ if(ws?.readyState===WebSocket.OPEN && responses.length)ws.send(JSON.stringify({toolResponse:{functionResponses:responses}}));
+ j.status('JARVIS tool operations complete. Continuing conversation...');
+}
+
 button.onclick=()=>ws?disconnect():connect();
 j.by('jbNatural').addEventListener('change',()=>{if(ws){disconnect();j.status('Voice changed. Reconnect natural voice to hear the new voice.')}});
 j.by('jbClose').addEventListener('click',()=>disconnect());
-window.JARVISNative={ready:isReady,connect,disconnect,sendText,startMic,stopMic,activeMic,mute};
+window.JARVISNative={ready:isReady,connect,disconnect,sendText,startMic,stopMic,activeMic,mute,runToolCalls};
 })();
