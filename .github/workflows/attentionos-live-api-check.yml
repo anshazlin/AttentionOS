@@ -31,9 +31,9 @@ jobs:
             for attempt in range(4):
               try:
                 with urllib.request.urlopen(urllib.request.Request(host+route,headers={'User-Agent':'AttentionOS-safe-health-check'}),timeout=16) as r:
-                  status=r.status;data=r.read(15000);ctype=r.headers.get('Content-Type','')
+                  status=r.status;data=r.read(200000);ctype=r.headers.get('Content-Type','')
               except urllib.error.HTTPError as e:
-                status=e.code;data=e.read(15000);ctype=e.headers.get('Content-Type','')
+                status=e.code;data=e.read(200000);ctype=e.headers.get('Content-Type','')
               except Exception as e:
                 status=0;data=b'';ctype='';last=str(e)
               ok=status==code
@@ -44,8 +44,8 @@ jobs:
                   if field in ('configured','connected'):ok=ok and j[field] is True
                   if route=='/api/jarvis-chat':ok=ok and j.get('model')=='gemini-3.8-flash'
                 except: ok=False
-              elif kind=='javascript':ok=ok and ('javascript' in ctype.lower() or data.strip().startswith(b'(function'))
-              elif kind=='html':ok=ok and (b'<html' in data.lower())
+              elif kind=='javascript':ok=ok and ('javascript' in ctype.lower() or data.strip().startswith(b'(function')) and b'planFor' in data and b'publishNow' in data
+              elif kind=='html':ok=ok and (b'<html' in data.lower()) and b'Start JARVIS call' in data and b'runToolCalls' in data
               if ok:break
               last=f'status={status} content-type={ctype} sample={data[:160]!r}'
               time.sleep(5)
