@@ -145,6 +145,8 @@ function wake(method,trailing){
 async function start(){
  if(S.starting||S.enabled)return;
  if(!window.isSecureContext){inform('Hands-free needs HTTPS and a supported browser.');return}
+ // Prime spoken audio during the user's first explicit permission gesture.
+ window.JARVISNative?.primeAudio?.();
  S.enabled=true;S.starting=true;S.speechAllowed=true;update();
  const ok=await startClap();
  S.starting=false;
@@ -170,6 +172,7 @@ if(window.JARVISBetter?.close){
  window.JARVISBetter.close=function(){old.apply(this,arguments);S.awake=false;if(S.enabled)setTimeout(()=>{if(!document.hidden)resume()},800);update()};
 }
 document.getElementById('jbClose')?.addEventListener('click',()=>{S.awake=false;if(S.enabled)setTimeout(()=>{if(!document.hidden)resume()},950)});
+document.getElementById('jLiveButton')?.addEventListener('click',()=>{if(S.enabled&&S.awake){setTimeout(()=>{if(!window.JARVISNative?.ready()&&S.enabled){S.awake=false;if(!document.hidden)resume()}},900)}});
 window.JARVISWake={enable:start,disable:stop,wake,phrase,isEnabled:()=>S.enabled,isAwake:()=>S.awake,claps:()=>S.clapCount};
 update();
 })();
