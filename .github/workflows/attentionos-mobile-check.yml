@@ -1,0 +1,28 @@
+name: AttentionOS mobile JS checks
+on:
+  push:
+    branches: [chatgpt-plus-codex-mobile]
+    paths:
+      - 'apps/free-mobile-web/**'
+      - '.github/workflows/attentionos-mobile-check.yml'
+  workflow_dispatch:
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check browser, API, and inline JS
+        run: |
+          node --check apps/free-mobile-web/agent.js
+          node --check apps/free-mobile-web/api/agent.js
+          node --check apps/free-mobile-web/api/zernio.js
+          node - <<'NODE'
+          const fs=require('node:fs'),vm=require('node:vm');
+          const html=fs.readFileSync('apps/free-mobile-web/index.html','utf8');
+          const blocks=[...html.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/gi)];
+          for(const [i,b] of blocks.entries())if(b[1].trim()){new vm.Script(b[1],{filename:'inline-'+i+'.js'});}
+          if(!html.includes('src="/agent.js"'))throw Error('Agent script tag missing');
+          console.log('OK: '+blocks.length+' script blocks checked');
+          NODE
