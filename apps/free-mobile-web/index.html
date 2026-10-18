@@ -295,6 +295,7 @@ by('jbAgent').onclick=()=>window.AttentionAgent?.open('research trending afforda
 by('jbAnalytics').onclick=()=>{window.AttentionAgent?.open();window.AttentionAgent?.analytics?.()};
 window.JARVISBetter={open,close,chat,add,status,token:secureToken,req,by,app,speechOn:()=>app.voiceOn};
 const fab=document.querySelector('.jarvisFab');if(fab){fab.onclick=open;fab.setAttribute('aria-label','Open intelligent JARVIS assistant')}
+const launch=document.createElement('button');launch.id='jbLaunch';launch.type='button';launch.textContent='✦ JARVIS AI';launch.setAttribute('aria-label','Open intelligent Gemini JARVIS assistant');launch.style.cssText='position:fixed;right:12px;bottom:190px;z-index:7000;background:#b7f47e;color:#132016;border:2px solid #699340;padding:11px 15px;border-radius:15px;font:800 14px system-ui;box-shadow:0 5px 20px #0009;cursor:pointer';launch.onclick=open;document.body.appendChild(launch);
 if(window.JARVIS){window.JARVIS.open=open;window.JARVIS.close=close}
 if(window.speechSynthesis){speechSynthesis.addEventListener?.('voiceschanged',localVoices);localVoices()}
 })();
