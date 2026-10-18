@@ -41,7 +41,8 @@ async function main(){
  await w.JARVISBetter.chat('Make a reel draft');
  messages=[...w.document.querySelectorAll('#jbMessages .jbBubble')].map(x=>x.textContent);
  assert.ok(messages.some(x=>x.includes('saved the Reel draft')),'Draft save not reported after execution');
- assert.ok(w.document.getElementById('agentIdeas').textContent.includes('Useful organizer guide'),'Reel concept not rendered');
+ assert.ok(w.localStorage.getItem('attentionos_free_mobile_v1')?.includes('Useful organizer guide'),'Draft not actually persisted');
+ assert.equal(w.document.querySelector('#agentIdeas input[data-field="title"]').value,'Useful organizer guide','Reel concept not rendered');
  await w.JARVISBetter.chat('Now post it with caption viral');
  messages=[...w.document.querySelectorAll('#jbMessages .jbBubble')].map(x=>x.textContent);
  assert.ok(messages.some(x=>x.includes('NOT posted')&&x.includes('No verified media')),'Must tell Master publishing did not happen');
