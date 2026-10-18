@@ -102,7 +102,7 @@ export async function startWorker(opts: WorkerOptions): Promise<WorkerHandle> {
   const wakeTimers = new Map<number, NodeJS.Timeout>();
   let stopping = false;
 
-  const engineReady = ws.config.runner.engine === "claude-code" || Boolean(ws.secret("ANTHROPIC_API_KEY"));
+  const engineReady = ws.config.runner.engine === "claude-code" || ws.config.runner.engine === "codex" || Boolean(ws.secret("ANTHROPIC_API_KEY"));
   const skipLlm = ws.config.mode !== "autopilot" || !engineReady;
   const { entries, problems } = collectSchedules(modules, ws.config);
   for (const p of problems) ws.log.warn(p);
