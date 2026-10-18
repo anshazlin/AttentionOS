@@ -32,3 +32,5 @@ jobs:
           NODE
       - name: Mock API smoke tests (no Instagram publishing)
         run: node apps/free-mobile-web/test/api-smoke.cjs
+      - name: Mock Gemini intelligence and Live tokens (no paid calls)
+        run: node apps/free-mobile-web/test/jarvis-smoke.cjs
