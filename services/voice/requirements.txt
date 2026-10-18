@@ -1,0 +1,7 @@
+# CPU-friendly Kokoro voice service (model weights licensed Apache-2.0)
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+kokoro>=0.9.4,<1
+soundfile>=0.12,<1
+numpy>=1.24,<3
+# Install device-appropriate PyTorch separately from https://pytorch.org/
