@@ -38,3 +38,5 @@ jobs:
         run: |
           npm install --prefix /tmp/attentionos-browsercheck --no-save --silent jsdom@27
           NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/jarvis-browser.cjs
+      - name: Test JARVIS tool outcomes (no real Instagram posting)
+        run: NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/action-flow.cjs
