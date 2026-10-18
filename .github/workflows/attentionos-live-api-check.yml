@@ -38,8 +38,10 @@ jobs:
                 status=0;data=b'';ctype='';last=str(e)
               ok=status==code
               if kind=='json':
-                try: j=json.loads(data);ok=ok and field in j and 'json' in ctype.lower()
-                if field in ('configured','connected'):ok=ok and j[field] is True
+                try:
+                  j=json.loads(data)
+                  ok=ok and field in j and 'json' in ctype.lower()
+                  if field in ('configured','connected'):ok=ok and j[field] is True
                 except: ok=False
               elif kind=='javascript':ok=ok and ('javascript' in ctype.lower() or data.strip().startswith(b'(function'))
               elif kind=='html':ok=ok and (b'<html' in data.lower())
