@@ -19,6 +19,13 @@ try {
 let data;
 switch(b.action||req.query.action){
 case "accounts":data=await zernio("/accounts");break;
+case "presign":{
+ const filename=String(b.filename||"").replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,140),contentType=String(b.contentType||"");
+ const allowed=["image/jpeg","image/png","image/webp","video/mp4","video/quicktime","video/webm"];
+ if(!filename||!allowed.includes(contentType)||!Number.isInteger(b.size)||b.size<1||b.size>300000000)return json(res,400,"Choose JPG, PNG, MP4, MOV or WebM file under 300 MB");
+ data=await zernio("/media/presign","POST",{filename,contentType,size:b.size});break}
+case "list-posts":{const account=String(b.accountId||"");if(!oid(account))return json(res,400,"Invalid account");data=await zernio("/posts?accountId="+encodeURIComponent(account)+"&limit=20");break}
+
 case "automations":data=await zernio("/comment-automations");if(Array.isArray(data.automations)&&oid(b.accountId))data.automations=data.automations.filter(a=>a.accountId===b.accountId);break;
 case "inbox":if(!oid(b.accountId))return json(res,400,"Select account");data=await zernio("/inbox/conversations?accountId="+b.accountId);break;
 case "publish":
