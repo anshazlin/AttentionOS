@@ -20,7 +20,7 @@ async function main(){
  assert.equal(good.statusCode,200);
  assert.equal(good.payload.reply,'I can help, Master.');
  assert.equal(good.payload.action,'open_agent');
- const request=got[0];assert.match(request.url,/gemini-2\.5-flash/);assert.equal(request.options.headers['x-goog-api-key'],'safe-testing-gemini');
+ const request=got[0];assert.match(request.url,/gemini-3\.8-flash/);assert.equal(request.options.headers['x-goog-api-key'],'safe-testing-gemini');
  assert.doesNotMatch(request.options.body,/safe-testing-owner/);
  const liveResponse=response();
  await live({method:'POST',headers:{'x-owner-token':'safe-testing-owner'},body:{}},liveResponse);
