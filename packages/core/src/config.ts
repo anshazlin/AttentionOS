@@ -57,19 +57,19 @@ export const configSchema = z.object({
   agents: z.partialRecord(z.enum(AGENT_KEYS), agentConfigSchema).default({}),
 
   providers: z.object({
-    publisher: providerChoice(["zernio", "blotato", "manual"] as const, "zernio"),
-    inbox: providerChoice(["zernio", "blotato", "none"] as const, "zernio"),
-    ownAnalytics: providerChoice(["zernio", "iggraph", "blotato", "csv"] as const, "zernio"),
-    scraper: providerChoice(["apify", "iggraph", "ytdlp", "none"] as const, "apify"),
+    publisher: providerChoice(["zernio", "blotato", "manual"] as const, "manual"),
+    inbox: providerChoice(["zernio", "blotato", "none"] as const, "none"),
+    ownAnalytics: providerChoice(["zernio", "iggraph", "blotato", "csv"] as const, "csv"),
+    scraper: providerChoice(["apify", "iggraph", "ytdlp", "none"] as const, "none"),
     asr: providerChoice(["whispercpp", "parakeet", "openai"] as const, "whispercpp"),
     renderer: providerChoice(["cut", "motion"] as const, "cut"),
     imageGen: providerChoice(["none", "openai", "gemini"] as const, "none"),
-    notifier: providerChoice(["telegram", "discord", "email", "console"] as const, "telegram"),
+    notifier: providerChoice(["telegram", "discord", "email", "console"] as const, "console"),
     crm: providerChoice(["lite", "webhook", "sheets", "gohighlevel", "hubspot"] as const, "lite"),
     storage: providerChoice(["local", "supabase", "s3"] as const, "local"),
   }).default({
-    publisher: "zernio", inbox: "zernio", ownAnalytics: "zernio", scraper: "apify", asr: "whispercpp",
-    renderer: "cut", imageGen: "none", notifier: "telegram", crm: "lite", storage: "local",
+    publisher: "manual", inbox: "none", ownAnalytics: "csv", scraper: "none", asr: "whispercpp",
+    renderer: "cut", imageGen: "none", notifier: "console", crm: "lite", storage: "local",
   }),
 
   /**
@@ -111,7 +111,7 @@ export const configSchema = z.object({
     model: z.string().min(1).optional(),
   }).default({ embeddings: "local" }),
 
-  budgets: budgetSchema.default({ perRunUsd: 2, dailyUsd: 5, scrapingMonthlyUsd: 29, imagesDailyUsd: 2 }),
+  budgets: budgetSchema.default({ perRunUsd: 2, dailyUsd: 5, scrapingMonthlyUsd: 0, imagesDailyUsd: 0 }),
 
   /** One metric every agent judges against. */
   northStar: z.object({
