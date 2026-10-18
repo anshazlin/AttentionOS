@@ -31,6 +31,42 @@
 @media(max-width:780px){.integrationGrid{grid-template-columns:1fr}.jarvisFab{bottom:82px;right:15px}.jarvisPanel{max-height:84dvh}.jarvisShade{padding:7px}}
 
 </style>
+<style id="attentionos-mobile-cleanup">
+/* Mobile-first layout containment: prevent sections and navigation spilling offscreen. */
+html,body{max-width:100%;width:100%;overflow-x:clip}
+.shell,.main,.view,.card,.topbar,.headingRow,.stats,.settingsgrid,.listgrid,
+.integrationGrid,.formgrid,.calendar,.day,.mobileNav,.autohero{min-width:0;max-width:100%}
+.main{overflow-x:clip}
+.card,.autohero,.stat,.day,.modal,.settingline{overflow-wrap:anywhere}
+input,select,textarea,button{max-width:100%;min-width:0}
+img,video,iframe,canvas{max-width:100%;height:auto}
+.actions,.topright,.headingRow,.settingline,.cardhead{min-width:0;flex-wrap:wrap}
+.mobileNav{box-sizing:border-box;width:100%;max-width:100vw;overflow:hidden;gap:0;padding:6px max(2px,env(safe-area-inset-left)) max(7px,env(safe-area-inset-bottom)) max(2px,env(safe-area-inset-right))}
+.mobileNav button{flex:1 1 0;min-width:0!important;padding:5px 1px;font-size:clamp(9px,2.45vw,11px);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:normal;overflow-wrap:normal}
+.mobileNav button span{font-size:18px}
+#jbOverlay,#jbBody,#jbMessages,#agentView,#agentBody{width:100%;max-width:100vw;box-sizing:border-box;overflow-wrap:anywhere}
+#jbBody{padding:14px 12px 120px}
+#jbOverlay .jbHead{position:sticky;top:0;z-index:5;background:#0a1017;padding:12px 4px}
+#jbOverlay .jbPanel{max-width:100%;overflow:hidden}
+#jbOverlay .jbRow>*{min-width:0}
+#jbOverlay #jbQuestion{flex:1 1 170px!important}
+#jbOverlay #jbSend{flex:0 0 auto}
+#jbOverlay #jbMessages{max-width:100%;overflow-x:hidden}
+/* One obvious hands-free action instead of repeated call buttons. */
+.jarvisFab,#jbLaunch,#agentOpen,#aaFab,#jbMic,#jLiveButton,#jbFallbackMic{display:none!important}
+#jbLiveMount{display:none!important}
+#jbOverlay #jbOrb{width:90px;height:90px}
+#jbOverlay .jbPanel{margin:10px 0}
+#jbOverlay .jbHead strong{font-size:20px}
+#jwWake{right:auto!important;left:10px!important;bottom:calc(74px + env(safe-area-inset-bottom))!important;max-width:calc(100vw - 20px)!important;z-index:9200!important}
+@media(min-width:800px){#jbBody{padding:22px 24px 100px}#jwWake{left:auto!important;right:24px!important;bottom:24px!important}}
+@media(max-width:700px){
+.main{padding-inline:12px!important}
+.integrationGrid,.settingsgrid,.listgrid{grid-template-columns:minmax(0,1fr)!important}
+.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.topright .pill{font-size:9px;padding:7px}
+}
+</style>
 </head>
 <body>
 <div class="shell">
@@ -196,14 +232,14 @@ load();render();for(const id of ['brandPrompt','audiencePrompt','topicPrompt','e
 (function(){
 "use strict";
 const by=id=>document.getElementById(id);
-const app={history:[],busy:false,voiceOn:true,listening:null,voices:[],live:null};
+const app={history:[],busy:false,voiceOn:false,listening:null,voices:[],live:null};
 const style=document.createElement('style');
 style.textContent='#jbOverlay{position:fixed;inset:0;z-index:8900;background:#0a1017;color:#eff8f0;display:none;overflow:auto;font:15px system-ui,sans-serif}#jbOverlay.open{display:block}#jbBody{max-width:830px;margin:auto;padding:18px 16px 100px}.jbRow{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.jbHead{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #334556;padding:10px 0 17px}.jbHead strong{font-size:23px;letter-spacing:-1px}.jbAccent{color:#bbf481}.jbPanel{background:#16212c;border:1px solid #344558;border-radius:19px;padding:16px;margin:15px 0}.jbBtn{padding:12px 15px;border:1px solid #4a5d6b;border-radius:13px;background:#253546;color:#ecf7f0;font-weight:750;font-size:14px;cursor:pointer}.jbBtn.green{background:#b7f47e;color:#132016;border-color:#b7f47e}.jbBtn:disabled{opacity:.5}.jbSmall{color:#aebaca;font-size:12px;line-height:1.6}.jbInput{border:1px solid #485a6c;background:#0b151d;border-radius:11px;color:#eaf4f1;padding:12px;box-sizing:border-box;width:100%;font-size:15px}.jbLabel{font-size:12px;color:#aebeca;font-weight:800;display:block;margin:9px 0 5px}.jbBadge{color:#b7f47e;font-size:12px;background:#29432a;border:1px solid #567b42;padding:6px;border-radius:10px}.jbOrb{height:105px;width:105px;border:3px solid #a5d486;box-shadow:0 0 30px #b4e47b33;background:radial-gradient(circle,#567d4e,#153b33 46%,#12202b);border-radius:50%;margin:10px auto;display:grid;place-items:center;color:#e8ffe5;font-size:31px}.jbOrb.active{animation:jbP 1.2s infinite alternate}@keyframes jbP{to{transform:scale(1.07);box-shadow:0 0 45px #adff91ad}}#jbMessages{height:min(42vh,480px);min-height:240px;overflow:auto;border:1px solid #304155;background:#0b151e;border-radius:15px;padding:11px}.jbBubble{border-radius:15px;background:#1d3040;padding:12px;white-space:pre-wrap;line-height:1.5;margin:8px 5px;overflow-wrap:anywhere}.jbBubble.user{background:#29432f;margin-left:24px}.jbBubble b{display:block;font-size:11px;letter-spacing:1px;color:#baf185;margin-bottom:5px}.jbGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.jbStatus{font-size:13px;color:#b7f47e;min-height:28px;padding:4px}#jbLiveMount{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}@media(max-width:650px){.jbGrid{grid-template-columns:1fr}.jbBtn{padding:11px 12px}}';
 document.head.appendChild(style);
 const shade=document.createElement('div');shade.id='jbOverlay';shade.setAttribute('role','dialog');shade.setAttribute('aria-label','JARVIS AI assistant');shade.setAttribute('aria-modal','true');
-shade.innerHTML='<main id="jbBody"><div class="jbHead"><div><strong>JARVIS <span class="jbAccent">AI CORE</span></strong><div class="jbSmall">Real Gemini conversation • Deeper voice • TrendWale tools</div></div><button class="jbBtn" id="jbClose">✕ Close</button></div>'+
+shade.innerHTML='<main id="jbBody"><div class="jbHead"><div><strong>JARVIS <span class="jbAccent">AI CORE</span></strong><div class="jbSmall">Conversational AI • Hands-free wake-up • TrendWale</div></div><button class="jbBtn" id="jbClose">✕ Close</button></div>'+
 '<div class="jbPanel"><div class="jbRow" style="justify-content:space-between"><b>Intelligence connection</b><span id="jbBadge" class="jbBadge">Checking...</span></div><label class="jbLabel">Owner access code — temporary, not stored</label><input id="jbOwner" class="jbInput" type="password" autocomplete="off" placeholder="Enter ATTENTIONOS_OWNER_TOKEN"/><div class="jbSmall">Your Gemini API key remains protected in Vercel, never in the browser. Gemini Pro and ChatGPT Plus plans do not automatically include API credits.</div></div>'+
-'<div class="jbPanel" style="text-align:center"><div id="jbOrb" class="jbOrb">◎</div><div class="jbStatus" id="jbStatus">At your service, Master.</div><div class="jbRow" style="justify-content:center"><button id="jbMic" class="jbBtn green">📞 Start JARVIS call</button><button id="jbMute" class="jbBtn">🔊 Voice on</button></div><div id="jbLiveMount"></div><div class="jbGrid"><div><label class="jbLabel">Gemini male voice</label><select id="jbNatural" class="jbInput"><option value="Charon">Charon — calm and mature</option><option value="Orus">Orus — firm and confident</option><option value="Iapetus">Iapetus — clear</option><option value="Fenrir">Fenrir — dramatic</option></select></div><div><label class="jbLabel">Fallback phone voice</label><select id="jbLocal" class="jbInput"><option value="">Choose a deep voice automatically</option></select></div></div><div class="jbSmall">Natural Gemini voice needs one secure Live connection. Your phone will ask for microphone permission. Browser fallback voices depend on your phone.</div></div>'+
+'<div class="jbPanel" style="text-align:center"><div id="jbOrb" class="jbOrb">◎</div><div class="jbStatus" id="jbStatus">At your service, Master.</div><div class="jbRow" style="justify-content:center"><button id="jbMic" class="jbBtn green">📞 Start JARVIS call</button><button id="jbMute" class="jbBtn">🔇 Voice off</button></div><div id="jbLiveMount"></div><div class="jbGrid"><div><label class="jbLabel">Gemini male voice</label><select id="jbNatural" class="jbInput"><option value="Charon">Charon — calm and mature</option><option value="Orus">Orus — firm and confident</option><option value="Iapetus">Iapetus — clear</option><option value="Fenrir">Fenrir — dramatic</option></select></div><div><label class="jbLabel">Fallback phone voice</label><select id="jbLocal" class="jbInput"><option value="">Choose a deep voice automatically</option></select></div></div><div class="jbSmall">Say “Jarvis” or clap after enabling hands-free. Voice quality depends on the active audio provider and your device.</div></div>'+
 '<div class="jbPanel"><div id="jbMessages" aria-live="polite"><div class="jbBubble"><b>JARVIS</b>At your service, Master. You can ask me anything, and I will remember our recent conversation. I can also help manage TrendWale drafts and open your tools.</div></div><div class="jbRow" style="margin:13px 0"><input id="jbQuestion" class="jbInput" style="flex:1;min-width:160px" placeholder="Ask a real question..." maxlength="1800"/><button id="jbSend" class="jbBtn green">Send</button></div><div class="jbRow"><button id="jbAgent" class="jbBtn">🔍 Research & 3 Reels</button><button id="jbAnalytics" class="jbBtn">📊 Instagram analytics</button><button id="jbClear" class="jbBtn">Clear chat</button></div><div class="jbSmall">JARVIS can make recommendations and prepare local drafts. Scheduling, posting, DMs and paid actions always need your explicit approval.</div></div></main>';
 document.body.appendChild(shade);
 function status(s){by('jbStatus').textContent=s}
