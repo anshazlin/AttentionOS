@@ -313,6 +313,9 @@ const activeMic=()=>Boolean(stream);
 function resetText(){button.textContent='📞 Start natural JARVIS call'}
 async function connect(){
  try{
+  // Prime playback inside the user gesture. Android browsers can block a new AudioContext made only when Gemini audio arrives.
+  const AudioClass=window.AudioContext||window.webkitAudioContext;
+  if(AudioClass&&!outCtx){try{outCtx=new AudioClass({sampleRate:24000});outCtx.resume().catch(()=>{})}catch{}}
   j.status('Requesting a secure Gemini Live session...');
   const info=await j.req('/api/jarvis-live',{});
   const uri='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token='+encodeURIComponent(info.token);
