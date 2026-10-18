@@ -3,7 +3,7 @@
 var ideas=[],sources=[],busy=false;
 var el=function(id){return document.getElementById(id)};
 var esc=function(v){return String(v===undefined?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
-var owner=function(){return el('ownerToken')&&el('ownerToken').value.trim()};
+var owner=function(){return (el('jbOwner')&&el('jbOwner').value.trim())||(el('ownerToken')&&el('ownerToken').value.trim())||''};
 var account=function(){return el('socialAccountId')&&el('socialAccountId').value.trim()};
 var note=function(x){el('agentNote').textContent=x};
 var css=document.createElement('style');
