@@ -35,5 +35,5 @@ try{
  assert.ok(d.getElementById('jbOverlay').classList.contains('open'),'JARVIS AI launcher did not open intelligent panel');
  assert.ok(!fatal.length,'Unhandled page errors: '+fatal.join(' | '));
  console.log('PASS: real conversational JARVIS boots and both buttons open the intelligent AI interface.');
-}catch(e){console.error('FAIL '+e.stack);console.error('Browser warnings:',failures.slice(0,8));process.exitCode=1;}finally{dom.window.close()}
+}catch(e){console.error('FAIL '+e.stack);console.error('Browser warnings:',failures.slice(0,8));process.exitCode=1;}finally{setTimeout(()=>dom.window.close(),300)}
 },550);
