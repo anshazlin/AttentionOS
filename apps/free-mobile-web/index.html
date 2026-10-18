@@ -157,7 +157,7 @@ load();render();for(const id of ['brandPrompt','audiencePrompt','topicPrompt','e
     fab.classList.add('active');$('jarvisOrb').classList.add('listening');$('jarvisMic').textContent='◼ Stop listening';$('jarvisState').textContent='Listening...';try{recognizer.start()}catch(e){reply('Could not access the microphone.',false)}
   }
   function run(command){if(!String(command||'').trim())return;open();addMsg(command,true);const c=command.toLowerCase().replace(/^\s*(hey\s+)?jarvis[,:]?\s*/,'').trim();
-    if(/(create|make|add|write|draft).*(post|content|reel|caption)|^(create|make)\s+.+/.test(c)){
+    // JARVIS AGENT COMMAND ROUTER: research is read-only until Master approves the drafts.\n    if(/(research.*(?:reel|product|trend)|prepare.*(?:three|3).*reels?|(?:three|3).*reels?|viral products|trending products)/i.test(c) && window.AttentionAgent){window.AttentionAgent.open(command);reply('Opening your 3-Reel research and approval agent, Master.',false);return}\n    if(/(create|make|add|write|draft).*(post|content|reel|caption)|^(create|make)\s+.+/.test(c)){
        let topic=c.replace(/^.*?(?:post|content|reel|caption)\s*(?:about|for|on)?\s*/,'').replace(/^(about|for|on)\s*/,'').trim();if(topic===c||!topic)topic='a fresh product idea';
        const draft={id:window.crypto?.randomUUID?.()||String(Date.now()),title:topic[0].toUpperCase()+topic.slice(1),platform:'Instagram',status:'draft',type:'Post',date:'',caption:`✨ ${topic}\n\nHere's something worth checking out. What do you think?\n\n#${(state.brand||'brand').replace(/\W/g,'')} #newfinds`,tags:''};
        state.posts.unshift(draft);save();render();reply('Done, Master. I created a local draft: '+draft.title+'. Review the caption before publishing.');navigate('pipeline');return;
@@ -189,4 +189,5 @@ load();render();for(const id of ['brandPrompt','audiencePrompt','topicPrompt','e
 })();
 
 </script>
+<script defer src="/agent.js"></script>
 </body></html>
