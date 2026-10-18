@@ -24,6 +24,11 @@ try{
  const w=dom.window,d=w.document;
  assert.ok(w.JARVISBetter,'Conversational JARVIS failed to initialize');
  assert.ok(w.JARVISNative,'Gemini natural voice module failed to initialize');
+ assert.ok(w.JARVISWake,'Wake-word/clap detector missing');
+ assert.ok(d.getElementById('jwToggle'),'Hands-free first-time microphone consent button missing');
+ assert.equal(w.JARVISWake.phrase('Hey Jarvis, find me budget products').trailing,'find me budget products');
+ assert.ok(w.JARVISWake.phrase('Jarvis'));assert.equal(w.JARVISWake.phrase('find some products'),null);
+ assert.equal(w.JARVISWake.isEnabled(),false,'Wake listening must default OFF until owner consent');
  assert.ok(d.getElementById('jbLaunch'),'Dedicated JARVIS AI button missing');
  assert.ok(d.getElementById('jbOverlay'),'New JARVIS AI panel missing');
  const shortcut=d.querySelector('.jarvisFab');assert.ok(shortcut,'Legacy launcher missing');
