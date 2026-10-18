@@ -23,6 +23,8 @@ jobs:
           node --check apps/free-mobile-web/jarvis-pro.js
           node --check apps/free-mobile-web/jarvis-live.js
           node --check apps/free-mobile-web/jarvis-wake.js
+          node --check apps/free-mobile-web/voice-provider.js
+          python3 -m py_compile services/voice/server.py
           node - <<'NODE'
           const fs=require('node:fs'),vm=require('node:vm');
           const html=fs.readFileSync('apps/free-mobile-web/index.html','utf8');
