@@ -264,11 +264,13 @@ async function chat(message,spoken=false){
    app.history=app.history.slice(-24);
    status('Ready, Master.');
    if(app.voiceOn&&!window.JARVISNative?.ready())say(answer);
+   return answer;
  }catch(e){
    const msg='The request was NOT completed: '+e.message;
    add('model',msg);status(msg);
    app.history.push({role:'user',text:m},{role:'model',text:msg});
    if(app.voiceOn&&!window.JARVISNative?.ready())say(msg);
+   return msg;
  }finally{app.busy=false;by('jbSend').disabled=false}
 }
 async function execute(d,original){
