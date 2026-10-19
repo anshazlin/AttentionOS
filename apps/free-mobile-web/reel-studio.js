@@ -221,11 +221,11 @@ async function render(){
  }catch(e){lastError=e.message;progress("Video NOT finished: "+e.message);if(recorder?.state==="recording")recorder.stop();return {ok:false,stage:"render-failed",error:e.message}}
  finally{images.filter(x=>x.tagName==="VIDEO").forEach(v=>{try{v.pause();v.src=""}catch{}});loaded.forEach(p=>{if(p.temporaryURL){URL.revokeObjectURL(p.temporaryURL);delete p.temporaryURL}});busy=false;$("reelRender").disabled=false}
 }
-async function uploadZernio(){
+async function uploadZernio(options={}){
  if(!current||current.ext!=="mp4"){tell("MP4 required. No Instagram upload was attempted.");return {ok:false,error:"A completed H.264 MP4 is required. Create or convert your Reel first."}}
  if(current.draft!==idea)return {ok:false,error:"Rendered MP4 belongs to a different product. Rerender the current draft before uploading."};
  if(current.mediaUrl)return {ok:true,stage:"uploaded-media",mediaUrl:current.mediaUrl,bytes:current.blob.size,publicPost:false,alreadyUploaded:true};
- if(!confirm("Upload the generated MP4 to Zernio as media for your approval? This does NOT publish."))return {ok:false,cancelled:true,error:"Upload was cancelled by the owner."};
+ if(!options.ownerRequested && !confirm("Upload the completed MP4 into Zernio media library? This does NOT publish it publicly."))return {ok:false,cancelled:true,error:"Upload was cancelled by the owner."};
  try{
   const result=await post("/api/zernio?action=presign",{action:"presign",filename:current.filename,contentType:"video/mp4",size:current.blob.size});
   const d=result.data||result;if(!d.uploadUrl||!d.publicUrl)throw Error("Zernio media upload URL unavailable");
@@ -237,7 +237,7 @@ async function uploadZernio(){
    const attribution=credits.length?"\n\nMedia credits: "+[...new Set(credits)].join("; ").slice(0,670):"";
    const qualifier=current.graphicsOnly?"\nOriginal motion-graphic concept — no actual product footage.":usesStock?"\nIllustrative stock footage; check the actual listing for product details.":"";
    idea.caption=(prefix+qualifier+attribution).slice(0,2180);
-   idea.mediaUrl=d.publicUrl;idea.mediaType="video";idea.saved=true;
+   idea.mediaUrl=d.publicUrl;idea.mediaType="video";idea.saved=true;window.AttentionAgent?.persistActive?.(idea);
   }
   current.mediaUrl=d.publicUrl;
   tell("Uploaded real MP4 to Zernio media library. NOT published. Review the media and approve an Instagram post separately.");
@@ -252,7 +252,7 @@ async function uploadPrepared(draft){
   if(!outcome?.ok)return {ok:false,error:"Real video not finished: "+(outcome?.error||"unsupported video encoder")};
  }
  if(!current||current.ext!=="mp4")return {ok:false,error:"Reel exists as WebM, not uploadable MP4. Try a compatible browser or download the WebM and convert it."};
- return uploadZernio();
+ return uploadZernio({ownerRequested:true});
 }
 $("reelRender").onclick=render;
 $("reelCancel").onclick=()=>{stop=true;window.ReelMP4?.cancel?.();tell("Stopping edit...")};
