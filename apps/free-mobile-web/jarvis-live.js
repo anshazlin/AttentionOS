@@ -24,7 +24,7 @@ async function connect(){
     outputAudioTranscription:{},inputAudioTranscription:{},
     tools:[{functionDeclarations:[
       {name:'research_products',description:'Actually research public source leads and prepare three product Reel concepts in the AttentionOS editor. Use for finding trending products or research, instead of claiming the research was launched.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A specific product niche or category, such as budget home organizers or phone accessories'}}}},
-      {name:'prepare_reel_draft',description:'Create and save one REAL local Reel script-and-caption draft in AttentionOS, not a finished video. Do not claim video generation or publication.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A niche or product topic'}}}},
+      {name:'prepare_reel_draft',description:'Create a local Reel draft, find licensed visuals and attempt to render a real 12-second video in Reel Studio. Report success only if actual video bytes were recorded. Never auto-publish.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A niche or product topic'}}}},
       {name:'review_instagram_post',description:'Open Instagram review in AttentionOS and report if media is missing. Never publish without user final confirmation.',parameters:{type:'OBJECT',properties:{caption:{type:'STRING',description:'Desired caption text, if any'}}}},
       {name:'show_instagram_analytics',description:'Fetch actual Instagram analytics from connected Zernio without guessing metrics',parameters:{type:'OBJECT',properties:{}}},
       {name:'open_calendar',description:'Show content calendar inside AttentionOS',parameters:{type:'OBJECT',properties:{}}}
@@ -134,7 +134,9 @@ async function runToolCalls(toolCall){
    }else if(fc.name==='prepare_reel_draft'){
     if(!window.AttentionAgent?.makeDraft)throw Error('Reel draft editor is unavailable');
     const d=await window.AttentionAgent.makeDraft(topic);
-    result={ok:true,draftTitle:d.title,savedLocally:true,videoRendered:false,published:false,needsOriginalMedia:d.needsMedia,note:'Created a script/caption draft, not a finished Reel video.'};
+    if(!window.ReelStudio?.open)throw Error('Real Reel editor unavailable');
+    const edited=await window.ReelStudio.open(d.idea||d,{autoSearch:true,autoRender:true});
+    result={ok:!!edited?.ok,draftTitle:d.title,savedLocally:true,videoRendered:!!edited?.ok,videoFormat:edited?.format||null,bytes:edited?.bytes||0,graphicsOnly:!!edited?.graphicsOnly,published:false,needsOriginalMedia:d.needsMedia,note:edited?.ok?'Video file generated. Review the actual result in Reel Studio; approval is required before any upload.':'Actual video render did not finish: '+(edited?.error||'unsupported browser or unavailable media')};
    }else if(fc.name==='review_instagram_post'){
     if(!window.AttentionAgent?.reviewPost)throw Error('Instagram review panel is unavailable');
     const d=window.AttentionAgent.reviewPost('caption '+String(fc.args?.caption||'').slice(0,2200));
