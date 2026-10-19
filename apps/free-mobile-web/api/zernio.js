@@ -32,7 +32,7 @@ case "publish":
 case "post":{
 if(!oid(b.accountId))return json(res,400,"Select account");const content=String(b.content||b.caption||"").slice(0,2200),url=String(b.mediaUrl||"");
 if(b.mode!=="draft"&&!/^https:\/\/[^\s]{1,2048}$/.test(url))return json(res,400,"Public HTTPS media URL required");
-const kind=/\.(mp4|mov)(\?|#|$)/i.test(url)?"video":"image";
+const kind=b.mediaType==="video"?"video":b.mediaType==="image"?"image":/\.(mp4|mov)(\?|#|$)/i.test(url)?"video":"image";
 const request={content,platforms:[{platform:"instagram",accountId:b.accountId}]};if(url)request.mediaItems=[{type:kind,url}];
 if(b.mode==="draft"){request.isDraft=true}else if(b.scheduledFor){const date=new Date(b.scheduledFor);if(!Number.isFinite(+date)||date<=new Date())return json(res,400,"Schedule must be in future");request.scheduledFor=date.toISOString();request.timezone="UTC"}
 else if(b.publishNow===true||b.mode==="now")request.publishNow=true;else return json(res,400,"Explicit publishing confirmation required");
