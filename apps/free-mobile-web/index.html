@@ -291,6 +291,26 @@ async function execute(d,original){
    if(output.format!=='mp4')return 'A real '+output.format.toUpperCase()+' video was generated, Master ('+Math.round(output.bytes/1024)+' KB), but Instagram requires MP4. Automatic MP4 conversion was unavailable on this device. You can download the original video and review it in Reel Studio. Nothing was published.';
    return 'I generated an actual 12-second MP4, Master ('+Math.round(output.bytes/1024)+' KB). '+(output.graphicsOnly?'It uses original motion graphics because no licensed product photos were available; it does not show a real product. ':'It uses selected licensed or owner-supplied images. ')+'Review the video in Reel Studio, then choose Upload MP4 to Zernio. Nothing has been posted.';
  }
+ case 'upload_reel_media':{
+   if(!window.ReelStudio?.uploadZernio)throw Error("Video editor is unavailable.");
+   let available=window.ReelStudio.state?.();
+   if(!available?.result){
+     const draft=window.AttentionAgent?.currentDraft?.();
+     if(!draft)return "Nothing uploaded, Master. First ask me to create a Reel.";
+     status("Finishing the video before uploading any media...");
+     const rendered=await window.ReelStudio.open(draft,{autoSearch:true,autoRender:true});
+     if(!rendered?.ok)return "Nothing uploaded, Master. The real video failed: "+(rendered?.error||"video encoder unavailable");
+   }
+   const result=await window.ReelStudio.uploadZernio();
+   if(!result?.ok)return "Nothing uploaded, Master. "+(result?.error||"Zernio media upload failed");
+   return "I uploaded the actual MP4 to Zernio's media library, Master ("+Math.round(result.bytes/1024)+" KB). It is NOT published to Instagram. Review the final video and say 'post it now' when ready.";
+ }
+ case 'publish_now':{
+   if(!window.AttentionAgent?.publishCurrentNow)throw Error("Instagram publishing workflow is unavailable.");
+   const result=await window.AttentionAgent.publishCurrentNow(original);
+   if(!result?.ok)return "Instagram was NOT published, Master. "+(result?.error||"Publishing was cancelled or rejected");
+   return "Zernio accepted your confirmed immediate publishing request"+(result.postId?" (post ID "+result.postId+")":"")+". I cannot claim it is live on Instagram until Zernio confirms the final delivery status.";
+ }
  case 'review_post':{
    if(!window.AttentionAgent?.reviewPost)throw Error('Publishing review is unavailable.');
    const r=window.AttentionAgent.reviewPost(original);
