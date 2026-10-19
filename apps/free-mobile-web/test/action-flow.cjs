@@ -12,6 +12,8 @@ async function main(){
  const c=await askServer('Make a reel draft');assert.equal(c.action,'prepare_reel');
  const d=await askServer('Now post it with caption viral');assert.equal(d.action,'publish_now');
  const up=await askServer('Upload it');assert.equal(up.action,'upload_reel_media');
+ const combined=await askServer('Now add clips and edit the video. Upload it');assert.equal(combined.action,'upload_reel_media');
+ const product=await askServer('Create a 2nd video of Smart Brushes Kitchen Smart Brush');assert.equal(product.action,'prepare_reel');assert.equal(product.topic,'Smart Brushes Kitchen Smart Brush');
  const topicAnswer=await askServer('smart brush',[{role:'model',text:'What product topic should your second Reel focus on?'}]);
  assert.equal(topicAnswer.action,'prepare_reel');
  assert.equal(topicAnswer.topic,'smart brush');
