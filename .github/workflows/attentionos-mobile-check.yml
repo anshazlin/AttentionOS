@@ -24,6 +24,7 @@ jobs:
           node --check apps/free-mobile-web/jarvis-live.js
           node --check apps/free-mobile-web/jarvis-wake.js
           node --check apps/free-mobile-web/voice-provider.js
+          node --check apps/free-mobile-web/jarvis-ui-clean.js
           node --check apps/free-mobile-web/reel-studio.js
           node --check apps/free-mobile-web/reel-transcoder.js
           node --check apps/free-mobile-web/api/creative-video.js
