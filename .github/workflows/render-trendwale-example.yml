@@ -1,0 +1,74 @@
+name: Render a free TrendWale sample Reel
+on:
+  push:
+    branches: [chatgpt-plus-codex-mobile]
+    paths: ['.github/workflows/render-trendwale-example.yml']
+  workflow_dispatch:
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source photo released into the public domain
+        run: |
+          curl --fail --location --retry 3 --user-agent "AttentionOS/1.0 private licensed reel proof" \
+            "https://upload.wikimedia.org/wikipedia/commons/f/ff/Digitalframe.jpg" -o /tmp/digitalframe.jpg
+          test "$(stat -c%s /tmp/digitalframe.jpg)" -gt 4000
+          file /tmp/digitalframe.jpg
+      - name: Compose an actual three-scene vertical Reel
+        run: |
+          python3 -m pip install -q pillow
+          mkdir -p /tmp/reel
+          python3 <<'PY'
+          from PIL import Image, ImageDraw, ImageFont, ImageFilter
+          photo=Image.open('/tmp/digitalframe.jpg').convert('RGB')
+          W,H=540,960
+          headings=[
+            ("DIGITAL PHOTO FRAME", "Your memories, on display", "A home-tech idea to explore"),
+            ("GIFT IDEA?", "Show your favorite moments", "Compare size, controls and reviews"),
+            ("CHECK THE LISTING", "Find your perfect frame", "Comment GUIDE for more details")
+          ]
+          font='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+          regular='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          for i,(headline,subtitle,detail) in enumerate(headings):
+            im=Image.new('RGB',(W,H));d=ImageDraw.Draw(im)
+            for y in range(H):
+              d.line([(0,y),(W,y)],fill=(8+int(7*y/H),20+int(15*y/H),27+int(9*y/H)))
+            d.rounded_rectangle([21,22,519,935],radius=26,outline=(58,102,77),width=3)
+            d.rounded_rectangle([31,35,509,52],radius=7,fill=(182,243,123))
+            d.text((36,92),'TRENDWALE',font=ImageFont.truetype(font,36),fill=(187,245,128))
+            d.text((36,150),'PRODUCT SPOTLIGHT  •  CONCEPT REEL',font=ImageFont.truetype(regular,16),fill=(210,220,220))
+            # The source is public domain, but not the user's exact supplier product.
+            canvas=Image.new('RGBA',(490,420),(25,34,41,255))
+            p=photo.copy();p.thumbnail((465,380))
+            px=(490-p.width)//2;py=(420-p.height)//2
+            canvas.paste(p,(px,py))
+            im.paste(canvas.convert('RGB'),(25,245))
+            d=ImageDraw.Draw(im)
+            d.text((35,685),headline,font=ImageFont.truetype(font,29),fill='white')
+            d.text((35,738),subtitle,font=ImageFont.truetype(font,22),fill=(184,244,126))
+            d.text((35,787),detail,font=ImageFont.truetype(regular,18),fill=(234,240,238))
+            d.text((35,866),'Illustrative public-domain photo; verify actual item.',font=ImageFont.truetype(regular,12),fill=(220,227,223))
+            d.text((35,889),'Photo: Ewigmkt / Wikimedia Commons · Public domain',font=ImageFont.truetype(regular,11),fill=(190,202,198))
+            im.save('/tmp/reel/scene%d.png'%i)
+          print('Created three branded image-based scenes from a real public-domain product photo.')
+          PY
+          ffmpeg -hide_banner -loglevel error -y \
+            -loop 1 -framerate 24 -t 4 -i /tmp/reel/scene0.png \
+            -loop 1 -framerate 24 -t 4 -i /tmp/reel/scene1.png \
+            -loop 1 -framerate 24 -t 4 -i /tmp/reel/scene2.png \
+            -filter_complex "[0:v]zoompan=z='min(1.0+on*0.0004,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=540x960:fps=24,fade=t=out:st=3.65:d=0.35[v0];[1:v]zoompan=z='min(1.0+on*0.0004,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=540x960:fps=24,fade=t=in:st=0:d=0.25,fade=t=out:st=3.65:d=0.35[v1];[2:v]zoompan=z='min(1.0+on*0.0004,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=540x960:fps=24,fade=t=in:st=0:d=0.25[v2];[v0][v1][v2]concat=n=3:v=1:a=0[v]" \
+            -map "[v]" -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p \
+            -movflags +faststart /tmp/reel/trendwale-digital-frame-example.mp4
+          ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height -of default=noprint_wrappers=1 \
+            /tmp/reel/trendwale-digital-frame-example.mp4
+          test "$(stat -c%s /tmp/reel/trendwale-digital-frame-example.mp4)" -gt 100000
+      - name: Save private MP4 render
+        uses: actions/upload-artifact@v4
+        with:
+          name: trendwale-digital-frame-example
+          path: /tmp/reel/trendwale-digital-frame-example.mp4
+          retention-days: 7
