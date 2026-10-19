@@ -53,7 +53,8 @@ async function main(){
  assert.ok(apiCalls.some(x=>x==='/api/agent'),'No actual research API call was made');
  await w.JARVISBetter.chat('Make a reel draft');
  messages=[...w.document.querySelectorAll('#jbMessages .jbBubble')].map(x=>x.textContent);
- assert.ok(messages.some(x=>x.includes('Video NOT completed')&&x.includes('Video recording is unsupported')),'JARVIS falsely claimed video creation instead of reporting the missing encoder');
+ assert.ok(messages.some(x=>x.includes('Video NOT completed')&&x.includes('No usable product images')),'JARVIS falsely claimed product video creation without sourced product images');
+ assert.equal(w.document.getElementById('reelCanvas').style.display,'none','Blank media must NOT show placeholder motion-graphic canvas');
  assert.ok(w.ReelStudio,'Real Reel editor did not load');
  assert.equal(w.ReelStudio.state().open,true,'Video editor not opened after JARVIS edit request');
  assert.ok(w.localStorage.getItem('attentionos_free_mobile_v1')?.includes('Useful organizer guide'),'Draft not actually persisted');
