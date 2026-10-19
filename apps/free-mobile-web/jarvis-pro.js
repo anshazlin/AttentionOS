@@ -51,10 +51,12 @@ async function execute(d,original){
    return 'Research finished, Master. I found '+result.sources.length+' public article leads and prepared '+result.ideas.length+' editable Reel concepts. '+(titles.length?'Sources include: '+titles.join('; ')+'. ':'')+'These are research leads, not verified best-selling products. Open JARVIS AGENT to review them.';
  }
  case 'prepare_reel':{
-   if(!window.AttentionAgent?.makeDraft)throw Error('The Reel editor is unavailable.');
-   status('Preparing a real local Reel draft...');
-   const r=await window.AttentionAgent.makeDraft(d.topic);
-   return 'I saved the Reel draft "'+r.title+'" to the local review pipeline, Master. It contains a script and caption, but no actual product footage yet. You must upload your own video or image before it can be published.';
+   if(!window.AttentionAgent?.makeDraft)throw Error('Reel research agent is unavailable.');
+   if(!window.ReelStudio?.open)throw Error('The automatic video editor failed to load. Refresh the page.');
+   status('Researching licensed visuals and generating an actual video...');
+   const prepared=await window.AttentionAgent.makeDraft(d.topic);
+   window.ReelStudio.open(prepared.idea||{title:prepared.title,caption:prepared.caption},{autoSearch:true,autoRender:true});
+   return 'I have started the automatic video editor for "'+prepared.title+'", Master. It is sourcing usable images and rendering a 12-second vertical Reel in the Video Studio. Check the result before publishing; nothing has been uploaded or posted yet.';
  }
  case 'review_post':{
    if(!window.AttentionAgent?.reviewPost)throw Error('Publishing review is unavailable.');
