@@ -292,18 +292,13 @@ async function execute(d,original){
    return 'I generated an actual 12-second MP4, Master ('+Math.round(output.bytes/1024)+' KB). '+(output.graphicsOnly?'It uses original motion graphics because no licensed product photos were available; it does not show a real product. ':'It uses selected licensed or owner-supplied images. ')+'Review the video in Reel Studio, then choose Upload MP4 to Zernio. Nothing has been posted.';
  }
  case 'upload_reel_media':{
-   if(!window.ReelStudio?.uploadZernio)throw Error("Video editor is unavailable.");
-   let available=window.ReelStudio.state?.();
-   if(!available?.result){
-     const draft=window.AttentionAgent?.currentDraft?.();
-     if(!draft)return "Nothing uploaded, Master. First ask me to create a Reel.";
-     status("Finishing the video before uploading any media...");
-     const rendered=await window.ReelStudio.open(draft,{autoSearch:true,autoRender:true});
-     if(!rendered?.ok)return "Nothing uploaded, Master. The real video failed: "+(rendered?.error||"video encoder unavailable");
-   }
-   const result=await window.ReelStudio.uploadZernio();
-   if(!result?.ok)return "Nothing uploaded, Master. "+(result?.error||"Zernio media upload failed");
-   return "I uploaded the actual MP4 to Zernio's media library, Master ("+Math.round(result.bytes/1024)+" KB). It is NOT published to Instagram. Review the final video and say 'post it now' when ready.";
+   if(!window.ReelStudio?.uploadPrepared)throw Error("Video workflow is unavailable.");
+   const current=window.AttentionAgent?.currentDraft?.();
+   if(!current)return "Nothing uploaded, Master. Please give me a product name and ask me to create its Reel first.";
+   status("Checking the "+current.title+" video and preparing its upload...");
+   const result=await window.ReelStudio.uploadPrepared(current);
+   if(!result?.ok)return "Nothing uploaded, Master. "+(result?.error||"The actual MP4 could not be generated or sent");
+   return "The "+current.title+" MP4 is in Zernio's media library ("+Math.round(result.bytes/1024)+" KB), Master. It is NOT posted to Instagram. You may review it and separately approve publishing.";
  }
  case 'publish_now':{
    if(!window.AttentionAgent?.publishCurrentNow)throw Error("Instagram publishing workflow is unavailable.");
