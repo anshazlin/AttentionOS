@@ -59,17 +59,29 @@ function reviewPost(message){
 }
 async function publishNow(i){
  const x=ideas[i],id=account();
- if(!x||!x.saved){note('Please approve the Reel draft first.');return}
- if(!/^[\w:-]{2,130}$/.test(id)){note('Choose the connected Instagram account ID first.');return}
- if(!/^https:\/\/\S+$/i.test(x.mediaUrl||'')||/instagram\.com\/(reel|p)\//i.test(x.mediaUrl||'')){note('You need your own direct MP4/JPG media before posting. A Reel webpage link is not media.');return}
- if(!window.confirm('Master, POST NOW to your connected Instagram account? This will be public immediately. \n\n'+x.title+'\n\n'+x.caption.slice(0,240)))return;
- note('Submitting approved post to Zernio...');
+ if(!x||!x.saved){note("Please approve the Reel draft first.");return {ok:false,error:"Approve the draft first"}}
+ if(!/^[\w:-]{2,130}$/.test(id)){note("Choose your connected Instagram account ID first.");return {ok:false,error:"Instagram account ID missing"}}
+ const media=String(x.mediaUrl||"");
+ if(!/^https:\/\/\S+$/i.test(media)||/instagram\.com\/(reel|p)\//i.test(media)){
+  note("Cannot publish without an uploaded MP4/JPG. A viral Reel page URL is not media.");
+  return {ok:false,error:"A direct uploaded MP4/JPG media file is required"};
+ }
+ if(!window.confirm("Master, POST NOW to your Instagram account? This action will be public immediately.\n\n"+x.title+"\n\n"+x.caption.slice(0,240)))
+  return {ok:false,cancelled:true,error:"You cancelled Instagram publication"};
+ note("Submitting your explicitly approved post to Zernio...");
  try{
-   const r=await api('/api/zernio?action=publish',{action:'publish',mode:'now',publishNow:true,accountId:id,caption:(x.caption+'\n\n'+x.hashtags).slice(0,2200),mediaUrl:x.mediaUrl});
-   const idValue=r.data?.post?._id||r.data?.id||r.postId||'';
-   note('Zernio accepted the publishing request'+(idValue?' (ID '+idValue+')':'')+'. Check Zernio for final Instagram status.');
- }catch(e){note('Publish was NOT confirmed: '+e.message)}
+   const r=await api("/api/zernio?action=publish",{action:"publish",mode:"now",publishNow:true,accountId:id,caption:(x.caption+"\n\n"+x.hashtags).slice(0,2200),mediaUrl:media});
+   const postId=r.data?.post?._id||r.data?.id||r.postId||"";
+   note("Zernio accepted the immediate publishing request"+(postId?" (ID "+postId+")":"")+". Final Instagram delivery status must still be checked in Zernio.");
+   return {ok:true,accepted:true,postId,finalStatus:"unverified"};
+ }catch(e){note("NOT published: "+e.message);return {ok:false,error:String(e.message||e)}}
 }
-window.AttentionAgent={open:open,plan:plan,planFor:planFor,makeDraft:makeDraft,reviewPost:reviewPost,analytics:analytics,currentDraft:()=>ideas.find(x=>x.saved)||ideas[0]||null};
+async function publishCurrentNow(message){
+ const d=reviewPost(message||"");
+ if(!d.ready)return {ok:false,error:d.reason};
+ const x=ideas.find(x=>x.saved)||ideas[0];
+ return publishNow(ideas.indexOf(x));
+}
+window.AttentionAgent={open:open,plan:plan,planFor:planFor,makeDraft:makeDraft,reviewPost:reviewPost,analytics:analytics,currentDraft:()=>ideas.find(x=>x.saved)||ideas[0]||null,publishCurrentNow:publishCurrentNow};
 
 })();
