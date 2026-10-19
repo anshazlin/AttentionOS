@@ -62,6 +62,14 @@ jobs:
           trap 'kill $server_pid 2>/dev/null || true' EXIT
           sleep 2
           NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/browser-video.cjs
+      - name: Convert real WebM to real H264 MP4 with FFmpeg WASM in Chromium
+        timeout-minutes: 7
+        run: |
+          python3 -m http.server 8878 --bind 127.0.0.1 --directory apps/free-mobile-web >/tmp/attentionos-mp4-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          sleep 2
+          NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/browser-mp4.cjs
       - name: Test JARVIS tool outcomes (no real Instagram posting)
         run: NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/action-flow.cjs
       - name: Simulated hands-free Gemini Live call and tool execution
