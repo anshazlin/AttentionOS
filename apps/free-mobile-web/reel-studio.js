@@ -18,7 +18,7 @@ css.textContent=[
 ".reelChoice{border:2px solid #3b515e;border-radius:12px;overflow:hidden;background:#101e2a;cursor:pointer;min-width:0}",
 ".reelChoice.chosen{border-color:#b8f47e}.reelChoice img,.reelChoice video{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}",
 ".reelChoice small{display:block;color:#dee5da;padding:6px;font-size:10px;overflow-wrap:anywhere}",
-"#reelCanvas{display:block;width:min(100%,235px);aspect-ratio:9/16;margin:12px auto;background:#07111b;border-radius:13px}",
+"#reelCanvas{display:none;width:min(100%,235px);aspect-ratio:9/16;margin:12px auto;background:#07111b;border-radius:13px}",
 "#reelOutput video{max-width:min(100%,230px);max-height:440px;border-radius:12px;display:block}",
 "#reelOutput a,#reelSources a{color:#b8f47e;overflow-wrap:anywhere}",
 "#reelMessage{position:sticky;bottom:5px;background:#b8f47e;color:#122015;font-weight:800;padding:12px;border-radius:12px;white-space:pre-wrap}",
@@ -27,16 +27,16 @@ css.textContent=[
 document.head.appendChild(css);
 const root=document.createElement("section");root.id="reelStudio";root.setAttribute("role","dialog");root.setAttribute("aria-label","Automatic Reel video editor");
 root.innerHTML='<main><div class="reelRow" style="justify-content:space-between"><h2>TRENDWALE · AUTO REEL STUDIO</h2><button class="reelBtn" id="reelClose">✕ Close</button></div>'+
-'<div class="reelCard"><h3>1. Pick the product</h3><p class="reelFine">JARVIS searches licensed images and turns them into an animated 9:16 video. Stock photos are illustrative and must not be presented as the exact item sold.</p><label class="reelLabel">Product or theme</label><input id="reelQuery" class="reelField" maxlength="105" value="digital photo frame"/><label class="reelLabel">Opening hook</label><textarea id="reelHook" class="reelField" rows="2" maxlength="170"></textarea><label class="reelLabel">Call to action</label><input id="reelCTA" class="reelField" maxlength="140"/><div class="reelRow"><button id="reelFind" class="reelBtn green">🔎 Find licensed product visuals</button><label class="reelBtn" for="reelOwn">↑ Add product photos</label><input id="reelOwn" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple hidden/></div><div id="reelSources" class="reelFine"></div></div>'+
+'<div class="reelCard"><h3>1. Pick the product</h3><p class="reelFine">JARVIS searches Creative Commons and optional licensed stock for visuals, then edits a 9:16 Reel. Verify the exact product before commercial posting; stock footage is illustrative.</p><label class="reelLabel">Product or theme</label><input id="reelQuery" class="reelField" maxlength="105" value="digital photo frame"/><label class="reelLabel">Opening hook</label><textarea id="reelHook" class="reelField" rows="2" maxlength="170"></textarea><label class="reelLabel">Call to action</label><input id="reelCTA" class="reelField" maxlength="140"/><div class="reelRow"><button id="reelFind" class="reelBtn green">🔎 Find licensed product visuals</button><label class="reelBtn" for="reelOwn">↑ Add product photos</label><input id="reelOwn" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple hidden/></div><div id="reelSources" class="reelFine"></div></div>'+
 '<div class="reelCard"><h3>2. Choose scenes</h3><div id="reelImages"><p class="reelFine">No photos selected yet.</p></div><p class="reelWarning">Stock visuals might not show your actual product. Use genuine product photos for accurate advertising. Include required Creative Commons author/license credits in captions.</p></div>'+
-'<div class="reelCard"><h3>3. Generate the edited video</h3><div class="reelRow"><button id="reelRender" class="reelBtn green">🎬 Auto-edit 12-second Reel</button><button id="reelCancel" class="reelBtn">Stop</button></div><canvas id="reelCanvas" width="540" height="960"></canvas><p class="reelFine">The browser edits images, transitions and text into a vertical Reel. On compatible phones it converts WebM to H.264 MP4 locally using free FFmpeg WebAssembly (first use downloads about 31MB). A graphics-only Reel is available if no licensed pictures are found; it does NOT show a real product.</p><div id="reelOutput"></div></div>'+
+'<div class="reelCard"><h3>3. Generate the edited video</h3><div class="reelRow"><button id="reelRender" class="reelBtn green">🎬 Auto-edit 12-second Reel</button><button id="reelCancel" class="reelBtn">Stop</button></div><canvas id="reelCanvas" width="540" height="960"></canvas><p class="reelFine">The editor needs real licensed or owner-supplied images/video. It refuses to create pretend product footage. A 12-second vertical video uses real scene pixels and converts WebM to MP4 on supported phones. Conversion may download an FFmpeg package.</p><div id="reelOutput"></div></div>'+
 '<div id="reelMessage" role="status" aria-live="polite">Ready, Master. Select your product.</div></main>';
 document.body.appendChild(root);
 const tell=s=>{$("reelMessage").textContent=s};
 const progress=s=>{tell(s);window.dispatchEvent(new CustomEvent("attentionos:reel-progress",{detail:{message:s}}))};
 function owner(){const t=$("ownerToken")?.value?.trim()||$("jbOwner")?.value?.trim();if(!t)throw Error("Enter the private owner code in Automations or JARVIS.");return t}
 async function post(url,body){const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-owner-token":owner()},body:JSON.stringify(body)});const raw=await r.text();let d;try{d=JSON.parse(raw)}catch{throw Error("Server returned HTTP "+r.status+" rather than JSON.")}if(!r.ok||d.ok===false)throw Error(d.error||"Request unsuccessful");return d}
-function clearResults(){if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null}current=null;$("reelOutput").innerHTML=""}
+function clearResults(){if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null}current=null;$("reelCanvas").style.display="none";$("reelOutput").innerHTML=""}
 function open(obj={},options={}){
  const selected=obj||{};
  if(activeJob){
@@ -87,9 +87,9 @@ async function find(){
   const items=(d.items||[]).filter(x=>x.kind==="image"||x.kind==="video").slice(0,9);
   items.forEach((p,i)=>photos.push({...p,chosen:i<4,own:false}));
   const sources=[...new Set((d.providers||[]))].join(", ");
-  $("reelSources").textContent=(sources||"No media provider available")+" · "+items.length+" usable photos · "+(d.warnings||[]).join("; ");
+  $("reelSources").textContent=(sources||"No media provider available")+" · "+items.length+" candidate images/clips · "+(d.warnings||[]).join("; ")+(!d.pexelsConfigured?" · Pexels optional free API key not connected.":"");
   gallery();
-  tell(items.length?"Found "+items.length+" licensed stock images. First four are selected. Now render the video.":"No verified images found. Add your own product photos for a real video.");
+  tell(items.length?"Found "+items.length+" licensed media candidates. First four selected; verify they match your product.":"No usable licensed stock images for this product. Try a shorter product name or add supplier photos that you have permission to use. The editor will not make fake product footage.");
  }catch(e){tell("Media search failed: "+e.message)}finally{busy=false;$("reelFind").disabled=false}
 }
 $("reelFind").onclick=find;
@@ -180,13 +180,13 @@ async function render(){
  try{
   tell("Loading photos for 12-second edited video...");
   for(const p of selected){if(stop)throw Error("Editing stopped");try{const visual=await load(p);images.push(visual);loaded.push(p)}catch(e){progress("Skipped an unavailable scene: "+e.message)}}
-  if(images.length<1)progress("No licensable product visuals loaded. Creating a labeled motion-graphic Reel rather than inventing footage.");
+  if(images.length<1)throw Error("No usable product images or videos could be loaded. Search broader terms or add licensed supplier footage. A text-only graphic is NOT the product Reel you requested.");
   if(images.length===1){images.push(images[0],images[0]);}
-  const type=mime(),canvas=$("reelCanvas"),ctx=canvas.getContext("2d"),chunks=[];
+  const type=mime(),canvas=$("reelCanvas"),ctx=canvas.getContext("2d"),chunks=[];canvas.style.display="block";
   recorder=new MediaRecorder(canvas.captureStream(20),{mimeType:type,videoBitsPerSecond:1600000});
   recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
   const recorded=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=e=>reject(Error(e.error?.message||"Recorder error"))});
-  const story={hook:$("reelHook").value,title:$("reelQuery").value,cta:$("reelCTA").value,stock:loaded.some(x=>!x.own),graphicsOnly:images.length===0};
+  const story={hook:$("reelHook").value,title:$("reelQuery").value,cta:$("reelCTA").value,stock:loaded.some(x=>!x.own),graphicsOnly:false};
   const started=performance.now();
   paint(ctx,images,0,story);recorder.start(800);
   tell("Editing video now. Keep this page open for 12 seconds...");
@@ -207,7 +207,7 @@ async function render(){
     catch(e){progress("MP4 conversion unavailable on this phone: "+e.message+". Original WebM is preserved.");}
   }
   videoURL=URL.createObjectURL(blob);
-  current={blob,ext,filename:"TrendWale-Reel-"+Date.now()+"."+ext,files:loaded,graphicsOnly:images.length===0,draft:idea,mediaUrl:null};
+  current={blob,ext,filename:"TrendWale-Reel-"+Date.now()+"."+ext,files:loaded,graphicsOnly:false,draft:idea,mediaUrl:null};
   const box=$("reelOutput");box.innerHTML="";
   const vid=document.createElement("video");vid.src=videoURL;vid.controls=true;vid.playsInline=true;box.append(vid);
   const row=document.createElement("div");row.className="reelRow";
@@ -218,7 +218,7 @@ async function render(){
   for(const p of loaded.filter(x=>!x.own)){const a=document.createElement("a");a.href=p.source;a.rel="noopener noreferrer";a.target="_blank";a.textContent=p.credit+" · "+p.license+" / ";box.append(a)}
   progress("Rendered actual "+ext.toUpperCase()+" video. "+(current.graphicsOnly?"This is a motion-graphic illustration, not real product footage. ":"")+(ext==="mp4"?"Review, then optionally upload as media to Zernio.":"Save WebM, or retry on a compatible phone for MP4."));
   return {ok:true,stage:"rendered",format:ext,bytes:blob.size,graphicsOnly:current.graphicsOnly,uploadReady:ext==="mp4"};
- }catch(e){lastError=e.message;progress("Video NOT finished: "+e.message);if(recorder?.state==="recording")recorder.stop();return {ok:false,stage:"render-failed",error:e.message}}
+ }catch(e){lastError=e.message;$("reelCanvas").style.display="none";progress("Video NOT finished: "+e.message);if(recorder?.state==="recording")recorder.stop();return {ok:false,stage:"render-failed",error:e.message}}
  finally{images.filter(x=>x.tagName==="VIDEO").forEach(v=>{try{v.pause();v.src=""}catch{}});loaded.forEach(p=>{if(p.temporaryURL){URL.revokeObjectURL(p.temporaryURL);delete p.temporaryURL}});busy=false;$("reelRender").disabled=false}
 }
 async function uploadZernio(options={}){
