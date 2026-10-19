@@ -36,6 +36,8 @@ module.exports=async (req,res)=>{
  const previous=history.map(h=>h.text).join(" ").toLowerCase();
  const directResearch=/\b(find|research|search|discover|scout|look for)\b.*\b(trend|product|viral|items|meesho)\b|\btrending products?\b/i.test(prompt);
  const directReel=/\b(make|create|prepare|draft|generate|edit|render|assemble|cut|produce)\b.*\b(reel|video)\b/i.test(prompt)||/\b(edit|render|produce|assemble)\s+(?:it|that)\b/i.test(prompt)&&/\b(reel|video|draft)\b/i.test(previous);
+ const explicitProduct=/\b(?:reel|video|short)\s+(?:for|of|about|featuring)\s+(.+)/i.exec(prompt);
+ const containsCombinedUpload=/(?:\b(?:add|edit|render|finish|assemble|generate)\b.*\b(?:clips?|video|reel)\b.*\b(?:upload|send)\b|\bupload\b.*\b(?:edited|rendered)\b)/i.test(prompt);
  const directMediaUpload=/\b(upload|send)\b.*\b(it|media|reel|video|zernio)\b/i.test(prompt)&&!/\b(instagram|publish|post publicly)\b/i.test(prompt);
  const directPublish=/\b(post|publish)\b.*\b(now|instagram|viral|reel|caption|it)\b/i.test(prompt)||/\bupload\b.*\binstagram\b/i.test(prompt);
  const recentlyRequestedProduct=/(?:which|what|specific|select|choose|tell me).*\b(product|topic|niche|item|focus)\b|\b(reel|video)\b.*\b(product|topic)\b/i.test(history.slice(-4).map(h=>h.text).join(" "));
@@ -44,11 +46,14 @@ module.exports=async (req,res)=>{
     && !/^(?:hello|hi|ok|okay|yes|no|done|please|thanks|thank you|what|why|how|jarvis|good morning|good evening)$/i.test(prompt.trim())
     && !/\b(post|upload|publish|research|find|create|make|render|edit|generate|draft)\b/i.test(prompt)
     && recentlyRequestedProduct;
- const continueResearch=/^(yes|yeah|okay|ok|sure|go ahead|do it|launch it|start it|proceed|done)$/i.test(prompt.trim()) && /(?:research|trending products?|launching research|research agent)/i.test(previous);
+ const continueResearch=/^(yes|yeah|okay|ok|sure|go ahead|do it|launch it|start it|proceed|done)$/i.test(prompt.trim()) && /(?:research|trending products?|launching research|research agent)/i.test(previous); 
  const getTopic=()=>{
-   const t=prompt.replace(/^(?:hey\s+)?jarvis[,:\s]*/i,"").replace(/\b(master|please|for me|now|launch it|find|research|look for|products?|trending|viral|create|make|prepare|reels?)\b/gi," ").replace(/\s+/g," ").trim();
+   const exact=explicitProduct?.[1]?.replace(/[.!?]+$/,"").trim();
+   if(exact && !/^(?:it|this|that|my previous|next|another|the last|a second|second)$/i.test(exact))return safe(exact,170);
+   const t=prompt.replace(/^(?:hey\s+)?jarvis[,:\s]*/i,"").replace(/\b(master|please|for me|now|launch it|find|research|look for|products?|trending|viral|create|make|prepare|reels?|videos?|of|for|second|2nd|another)\b/gi," ").replace(/\s+/g," ").trim();
    return safe(t,180)||"affordable useful home, fashion and gadget products for TrendWale Indian shoppers";
  };
+ if(containsCombinedUpload)return res.status(200).json({ok:true,action:"upload_reel_media",reply:"",topic:getTopic(),draft:null,model:"validated intent"});
  if(directMediaUpload)return res.status(200).json({ok:true,action:"upload_reel_media",reply:"",topic:"",draft:null,model:"validated intent"});
  if(directPublish)return res.status(200).json({ok:true,action:"publish_now",reply:"",topic:"",draft:null,model:"validated intent"});
  if(directReel||shortProductAnswer)return res.status(200).json({ok:true,action:"prepare_reel",reply:"",topic:shortProductAnswer?safe(prompt,170):getTopic(),draft:null,model:"validated intent"});
