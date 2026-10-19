@@ -70,6 +70,29 @@ async function commonsVideos(query,signal){
    license,stock:true,exactProduct:false}];
  });
 }
+function queryTerms(original){
+ const q=clean(original,MAX_QUERY);
+ const simplified=q.replace(/\b(?:trending|viral|cheap|budget|best|affordable|under|meesho|india|price|shopping|review|product|products|guide|reel|smart)\b/gi," ").replace(/\s+/g," ").trim();
+ const terms=[q,simplified];
+ if(/\b(toothbrush|tooth brush|electric brush)\b/i.test(q)&&!/\b(kitchen|dish|cleaning|scrub)\b/i.test(q))terms.push("electric toothbrush","toothbrush");
+ if(/\b(kitchen|dish|cleaning|scrub|sink)\b/i.test(q)&&/\bbrush|scrubber\b/i.test(q))terms.push("dishwashing brush","dish scrubber","kitchen cleaning brush");
+ if(/\b(photo|digital)\b/i.test(q)&&/\bframe\b/i.test(q))terms.push("digital photo frame","picture frame");
+ if(/\bbrush\b/i.test(q))terms.push("brush");
+ return [...new Set(terms.map(x=>x.trim()).filter(x=>x.length>=3))].slice(0,6);
+}
+async function openverse(query,signal){
+ const params=new URLSearchParams({q:query,source:"wikimedia",license:"cc0,pdm,by",page_size:"15"});
+ const data=await jsonFetch("https://api.openverse.org/v1/images/?"+params,{},signal);
+ return (data.results||[]).flatMap(item=>{
+  const src=mediaAddress(item.url),preview=mediaAddress(item.thumbnail)||src;
+  const license=String(item.license||"").toLowerCase(),version=clean(item.license_version||"",10);
+  const normalized=license==="cc0"?"CC0 1.0":license==="pdm"?"Public domain":license==="by"&&/^[1-4](?:\.0)?$/.test(version)?"CC BY "+version:null;
+  if(!src||!normalized||!validLicense(normalized)||item.mature)return [];
+  return [{id:"openverse-"+clean(item.id,85),kind:"image",src,preview,title:clean(item.title||query,150),
+   credit:clean(item.creator||"Wikimedia Commons creator",180),
+   source:clean(item.foreign_landing_url||item.url,650),license:normalized,stock:true,exactProduct:false}];
+ });
+}
 module.exports=async (req,res)=>{
  res.setHeader("Cache-Control","no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
@@ -84,10 +107,20 @@ module.exports=async (req,res)=>{
  try{
   if(process.env.PEXELS_API_KEY){try{items.push(...await pexels(q,ctrl.signal));via.push("Pexels")}catch(e){errors.push("Pexels: "+e.message)}}
   if(items.filter(x=>x.kind==="image").length<4){
-   const search=[q,q.replace(/\b(?:trending|viral|cheap|best|India|Meesho)\b/gi,"").trim()].filter(Boolean);
-   for(const term of [...new Set(search)]){
-    try{items.push(...await commons(term,ctrl.signal));via.push("Wikimedia Commons")}catch(e){errors.push("Wikimedia Commons: "+e.message)}
-    if(items.length>=10)break;
+   const terms=queryTerms(q);
+   for(const term of terms){
+    try{items.push(...await commons(term,ctrl.signal));via.push("Wikimedia Commons")}
+    catch(e){errors.push("Commons '"+term+"': "+e.message)}
+    if(items.filter(x=>x.kind==="image").length>=5)break;
+   }
+   if(items.filter(x=>x.kind==="image").length<3){
+     for(const term of terms.slice(0,4)){
+       try{
+        const found=await openverse(term,ctrl.signal);
+        items.push(...found);if(found.length)via.push("Openverse licensed Wikimedia");
+       }catch(e){errors.push("Openverse '"+term+"': "+e.message)}
+       if(items.filter(x=>x.kind==="image").length>=4)break;
+     }
    }
   }
   if(!items.length && /digital\s*(?:photo|picture)?\s*frame/i.test(q)){
