@@ -5,6 +5,50 @@ const mount=j.by('jbLiveMount');
 const button=document.createElement('button');button.id='jLiveButton';button.className='jbBtn green';button.textContent='📞 Start natural JARVIS call';mount.appendChild(button);
 const sub=document.createElement('span');sub.className='jbSmall';sub.textContent='Two-way Gemini Live conversation · hands-free while connected · tap End call when finished';mount.appendChild(sub);
 let ws=null,ready=false,stream=null,micCtx=null,outCtx=null,processor=null,playAt=0,transcript='',inputTranscript='';
+let commandTimer=0,commandBusy=false,suppressModelSpeech=false,lastHandledCommand='',lastHandledAt=0,lastRequestedReel=false;
+function commandIntent(raw){
+ const t=String(raw||'').trim().replace(/^(?:hey[ ,]+)?jarvis[\s,.:!?-]*/i,'');
+ if(t.length<3)return null;
+ if(/\b(?:upload|send)\b.*\b(?:it|that|reel|video|file|clips?|media|zernio)\b/i.test(t))return 'upload';
+ if(/\b(?:post|publish)\b.*\b(?:now|it|reel|video|instagram)\b/i.test(t))return 'publish';
+ if(/\b(?:create|make|prepare|draft|generate|render|edit|assemble|produce)\b.*\b(?:reel|video|clips?|short)\b/i.test(t))return 'reel';
+ if(/\b(?:find|research|search|scout|discover)\b.*\b(?:trend|products?|viral|meesho)\b/i.test(t))return 'research';
+ if(lastRequestedReel&&/^[\w\s-]{3,80}$/i.test(t)&&t.split(/\s+/).length<=7
+  && !/^(?:hey|hello|thanks|thank you|yes|no|okay|ok|what|why|how|who|when|where)\b/i.test(t))return 'reel';
+ return null;
+}
+async function dispatchCommand(raw){
+ const msg=String(raw||'').trim(),kind=commandIntent(msg);
+ if(!kind||commandBusy)return false;
+ if(msg===lastHandledCommand && Date.now()-lastHandledAt<7000)return true;
+ commandBusy=true;lastHandledCommand=msg;lastHandledAt=Date.now();
+ suppressModelSpeech=true;transcript='';
+ j.status('Executing '+kind+' with real AttentionOS tools. Please wait...');
+ try{
+  const result=await j.chat(msg,true);
+  if(kind==='reel')lastRequestedReel=false;
+  if(result && isReady()){
+    suppressModelSpeech=false;
+    ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:'The AttentionOS tools have FINISHED execution. Read the following VERIFIED status naturally and briefly; do not call tools or claim more actions: '+String(result).slice(0,1200)}]}],turnComplete:true}}));
+  }
+  return true;
+ }catch(e){j.status('Command execution failed: '+(e.message||e));return true}
+ finally{commandBusy=false;setTimeout(()=>{suppressModelSpeech=false},1800)}
+}
+function examineCommand(){
+ if(commandTimer){clearTimeout(commandTimer);commandTimer=0}
+ const phrase=inputTranscript.trim();
+ if(!phrase)return;
+ const intent=commandIntent(phrase);
+ if(intent){inputTranscript='';j.status('Voice command recognized: '+intent);dispatchCommand(phrase)}
+}
+function captureInput(piece){
+ inputTranscript+=String(piece||'');
+ if(commandIntent(inputTranscript))suppressModelSpeech=true;
+ if(commandTimer)clearTimeout(commandTimer);
+ commandTimer=setTimeout(examineCommand,950);
+}
+
 const isReady=()=>Boolean(ws&&ws.readyState===WebSocket.OPEN&&ready);
 const activeMic=()=>Boolean(stream);
 function resetText(){button.textContent='📞 Start natural JARVIS call'}
@@ -43,13 +87,18 @@ async function connect(){
     if(msg.toolCall){await runToolCalls(msg.toolCall);return}
     if(msg.serverContent){
      const c=msg.serverContent;
-     if(c.inputTranscription?.text)inputTranscript+=c.inputTranscription.text;
+     if(c.inputTranscription?.text)captureInput(c.inputTranscription.text);
      if(c.outputTranscription?.text)transcript+=c.outputTranscription.text;
-     for(const p of c.modelTurn?.parts||[]){if(p.inlineData?.data)play(p.inlineData.data,p.inlineData.mimeType)}
+     for(const p of c.modelTurn?.parts||[]){if(p.inlineData?.data&&!suppressModelSpeech)play(p.inlineData.data,p.inlineData.mimeType)}
      if(c.turnComplete){
-      if(inputTranscript.trim()){j.add('user',inputTranscript.trim());inputTranscript=''}
-      if(transcript.trim()){j.add('model',transcript.trim());transcript=''}
-      j.status('Ready for your next question, Master.');
+      if(inputTranscript.trim()){
+       const spoken=inputTranscript.trim();
+       if(commandIntent(spoken)){examineCommand()}
+       else{j.add('user',spoken);inputTranscript='';lastRequestedReel=/\b(?:reel|video)\b/i.test(spoken)}
+      }
+      if(transcript.trim()&&!suppressModelSpeech){j.add('model',transcript.trim())}
+      transcript='';
+      if(!commandBusy)j.status('Ready for your next question, Master.');
      }
     }
    }catch(err){j.status('Live audio error: '+err.message)}
@@ -111,6 +160,7 @@ function stopMic(){
 }
 function sendText(t){
  if(!isReady())return false;
+ if(commandIntent(t)){dispatchCommand(String(t).slice(0,1800));return true}
  j.add('user',t);
  ws.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:String(t).slice(0,1800)}]}],turnComplete:true}}));
  j.status('JARVIS is responding with natural audio...');return true
@@ -119,6 +169,8 @@ function mute(){
  if(outCtx){outCtx.close().catch(()=>{});outCtx=null;playAt=0}
 }
 function disconnect(){
+ if(commandTimer){clearTimeout(commandTimer);commandTimer=0}
+ inputTranscript='';suppressModelSpeech=false;commandBusy=false;
  stopMic();if(ws){try{ws.close(1000,'user disconnected')}catch{}}ws=null;ready=false;transcript='';inputTranscript='';mute();resetText();j.status('Call ended. Gemini AI text chat remains available.')
 }
 
