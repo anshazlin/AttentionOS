@@ -79,7 +79,7 @@ async function publishNow(i){
   return {ok:false,cancelled:true,error:"You cancelled Instagram publication"};
  note("Submitting your explicitly approved post to Zernio...");
  try{
-   const r=await api("/api/zernio?action=publish",{action:"publish",mode:"now",publishNow:true,accountId:id,caption:(x.caption+"\n\n"+x.hashtags).slice(0,2200),mediaUrl:media});
+   const r=await api("/api/zernio?action=publish",{action:"publish",mode:"now",publishNow:true,accountId:id,caption:(x.caption+"\n\n"+x.hashtags).slice(0,2200),mediaUrl:media,mediaType:x.mediaType||(/\.mp4(?:$|\?)/i.test(media)?"video":"image")});
    const postId=r.data?.post?._id||r.data?.id||r.postId||"";
    note("Zernio accepted the immediate publishing request"+(postId?" (ID "+postId+")":"")+". Final Instagram delivery status must still be checked in Zernio.");
    return {ok:true,accepted:true,postId,finalStatus:"unverified"};
