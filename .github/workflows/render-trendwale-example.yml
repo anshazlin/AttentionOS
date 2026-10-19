@@ -18,6 +18,11 @@ jobs:
             "https://upload.wikimedia.org/wikipedia/commons/f/ff/Digitalframe.jpg" -o /tmp/digitalframe.jpg
           test "$(stat -c%s /tmp/digitalframe.jpg)" -gt 4000
           file /tmp/digitalframe.jpg
+      - name: Install open-source FFmpeg encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          ffmpeg -version | head -1
       - name: Compose an actual three-scene vertical Reel
         run: |
           python3 -m pip install -q pillow
