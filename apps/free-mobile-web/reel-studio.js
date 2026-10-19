@@ -41,7 +41,7 @@ function open(obj={},options={}){
  $("reelQuery").value=String(options.topic||idea.title||"digital photo frame").slice(0,105);
  $("reelHook").value=String(idea.hook||"This affordable home upgrade is worth a look").slice(0,170);
  $("reelCTA").value=String(idea.cta||"Comment GUIDE for the product details").slice(0,140);
- if(options.autoSearch)find();
+ if(options.autoSearch)Promise.resolve(find()).then(()=>{if(options.autoRender){if(photos.some(p=>p.chosen))render();else tell('No usable licensed photos found. Add your own product photos to finish the Reel.')}});
  else tell("Ready to search or upload product images.");
 }
 function close(){stop=true;root.classList.remove("visible")}
@@ -126,13 +126,14 @@ function mime(){
 }
 async function render(){
  if(busy)return;const selected=photos.filter(x=>x.chosen).slice(0,5);
- if(selected.length<2){tell("Please select at least 2 photos so this is a real product video.");return}
+ if(selected.length<1){tell("Select at least one genuine or licensed photo to make the Reel.");return}
  busy=true;stop=false;$("reelRender").disabled=true;clearResults();
  const loaded=[],images=[];let recorder;
  try{
   tell("Loading photos for 12-second edited video...");
   for(const p of selected){if(stop)throw Error("Editing stopped");try{loaded.push(p);images.push(await load(p))}catch(e){tell("Skipped a photo: "+e.message)}}
-  if(images.length<2)throw Error("Not enough images loaded. Add original product photos.");
+  if(images.length<1)throw Error("No images loaded. Add original product photos.");
+  if(images.length===1){images.push(images[0],images[0]);}
   const type=mime(),canvas=$("reelCanvas"),ctx=canvas.getContext("2d"),chunks=[];
   recorder=new MediaRecorder(canvas.captureStream(20),{mimeType:type,videoBitsPerSecond:1600000});
   recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
