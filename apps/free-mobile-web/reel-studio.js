@@ -29,7 +29,7 @@ const root=document.createElement("section");root.id="reelStudio";root.setAttrib
 root.innerHTML='<main><div class="reelRow" style="justify-content:space-between"><h2>TRENDWALE · AUTO REEL STUDIO</h2><button class="reelBtn" id="reelClose">✕ Close</button></div>'+
 '<div class="reelCard"><h3>1. Pick the product</h3><p class="reelFine">JARVIS searches Creative Commons and optional licensed stock for visuals, then edits a 9:16 Reel. Verify the exact product before commercial posting; stock footage is illustrative.</p><label class="reelLabel">Product or theme</label><input id="reelQuery" class="reelField" maxlength="105" value="digital photo frame"/><label class="reelLabel">Opening hook</label><textarea id="reelHook" class="reelField" rows="2" maxlength="170"></textarea><label class="reelLabel">Call to action</label><input id="reelCTA" class="reelField" maxlength="140"/><div class="reelRow"><button id="reelFind" class="reelBtn green">🔎 Find licensed product visuals</button><label class="reelBtn" for="reelOwn">↑ Add product photos</label><input id="reelOwn" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" multiple hidden/></div><div id="reelSources" class="reelFine"></div></div>'+
 '<div class="reelCard"><h3>2. Choose scenes</h3><div id="reelImages"><p class="reelFine">No photos selected yet.</p></div><p class="reelWarning">Stock visuals might not show your actual product. Use genuine product photos for accurate advertising. Include required Creative Commons author/license credits in captions.</p></div>'+
-'<div class="reelCard"><h3>3. Generate the edited video</h3><div class="reelRow"><button id="reelRender" class="reelBtn green">🎬 Auto-edit 12-second Reel</button><button id="reelCancel" class="reelBtn">Stop</button></div><canvas id="reelCanvas" width="540" height="960"></canvas><p class="reelFine">The editor needs real licensed or owner-supplied images/video. It refuses to create pretend product footage. A 12-second vertical video uses real scene pixels and converts WebM to MP4 on supported phones. Conversion may download an FFmpeg package.</p><div id="reelOutput"></div></div>'+
+'<div class="reelCard"><h3>3. Generate the edited video</h3><div class="reelRow"><button id="reelRender" class="reelBtn green">🎬 Render 12-second Reel</button><button id="reelAutoUpload" class="reelBtn green">↑ Generate + upload MP4</button><button id="reelCancel" class="reelBtn">Stop</button></div><canvas id="reelCanvas" width="540" height="960"></canvas><p class="reelFine">The editor needs real licensed or owner-supplied images/video. It refuses to create pretend product footage. A 12-second vertical video uses real scene pixels and converts WebM to MP4 on supported phones. Conversion may download an FFmpeg package.</p><div id="reelOutput"></div></div>'+
 '<div id="reelMessage" role="status" aria-live="polite">Ready, Master. Select your product.</div></main>';
 document.body.appendChild(root);
 const tell=s=>{$("reelMessage").textContent=s};
@@ -254,6 +254,19 @@ async function uploadPrepared(draft){
  if(!current||current.ext!=="mp4")return {ok:false,error:"Reel exists as WebM, not uploadable MP4. Try a compatible browser or download the WebM and convert it."};
  return uploadZernio({ownerRequested:true});
 }
+$("reelAutoUpload").onclick=async()=>{
+ const btn=$("reelAutoUpload");if(btn.disabled)return;
+ btn.disabled=true;
+ try{
+  const draft=idea&&typeof idea==="object"&&idea.title?idea:{title:$("reelQuery").value.trim(),hook:$("reelHook").value.trim(),cta:$("reelCTA").value.trim(),caption:"",researchTopic:$("reelQuery").value.trim()};
+  if(!draft.title){progress("Enter your product name first.");return}
+  progress("Generating a real 12-second video for "+draft.title+" before sending it to Zernio...");
+  const uploaded=await uploadPrepared(draft);
+  if(!uploaded?.ok){progress("No file uploaded. "+(uploaded?.error||"A real playable MP4 was not produced."));return}
+  progress("VERIFIED: "+Math.round(uploaded.bytes/1024)+" KB MP4 uploaded to Zernio temporary storage. NOT published to Instagram. Review the Reel, then approve posting separately.");
+ }catch(e){progress("Video upload failed: "+String(e.message||e))}
+ finally{btn.disabled=false}
+};
 $("reelRender").onclick=render;
 $("reelCancel").onclick=()=>{stop=true;window.ReelMP4?.cancel?.();tell("Stopping edit...")};
 window.ReelStudio={open,find,render,close,uploadZernio,uploadPrepared,wait:()=>activeJob,state:()=>({open:root.classList.contains("visible"),photos:photos.length,chosen:photos.filter(p=>p.chosen).length,rendering:!!activeJob,error:lastError,result:current?{format:current.ext,bytes:current.blob.size,graphicsOnly:current.graphicsOnly,title:current.draft?.title||"",uploaded:!!current.mediaUrl}:null})};
