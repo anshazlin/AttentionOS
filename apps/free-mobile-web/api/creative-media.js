@@ -6,6 +6,10 @@ function clean(v,max=200){return String(v??"").replace(/<[^>]*>/g," ").replace(/
 const compatible=new Set(["CC0","CC0 1.0","CC BY 4.0","CC BY 3.0","CC BY 2.0","CC BY 2.5","CC BY 1.0","Public domain","PD","Public Domain Mark 1.0"]);
 function validLicense(str){let s=clean(str,100);return compatible.has(s)||/^CC BY (?:[1-4](?:\.0)?)$/i.test(s)||/^CC0(?: 1\.0)?$/i.test(s)||/^Public domain$/i.test(s)}
 function mediaAddress(raw){try{const u=new URL(raw);return u.protocol==="https:"&&["images.pexels.com","upload.wikimedia.org"].includes(u.hostname)&&u.username===""&&u.password===""?u.toString():null}catch{return null}}
+function videoAddress(raw){try{
+ const u=new URL(raw);
+ return u.protocol==="https:"&&["videos.pexels.com","upload.wikimedia.org"].includes(u.hostname)&&!u.port&&!u.username&&!u.password&&u.href.length<1800&&/\.(mp4|webm|ogv)(?:$|\?)/i.test(u.pathname+u.search)?u.toString():null
+}catch{return null}}
 async function jsonFetch(url,headers,signal){
  const r=await fetch(url,{headers:{Accept:"application/json","User-Agent":"AttentionOS/1.0 (copyright-aware licensed-media search)",...headers},signal});
  if(!r.ok)throw Error("Source HTTP "+r.status);
@@ -19,9 +23,9 @@ async function pexels(query,signal){
  const clips=await jsonFetch("https://api.pexels.com/v1/videos/search?query="+q+"&per_page=8&orientation=portrait",headers,signal).catch(()=>({videos:[]}));
  const photos=(images.photos||[]).map(p=>({id:"pexels-photo-"+p.id,kind:"image",src:mediaAddress(p.src?.portrait||p.src?.large||p.src?.original),preview:mediaAddress(p.src?.medium),title:clean(p.alt||query,150),credit:clean("Photo by "+(p.photographer||"Pexels contributor"),160),source:p.url||"https://www.pexels.com",license:"Pexels License",stock:true,exactProduct:false})).filter(x=>x.src);
  const videos=(clips.videos||[]).map(v=>{
-  const files=(v.video_files||[]).filter(f=>f.file_type==="video/mp4"&&mediaAddress(f.link)&&f.width&&f.height);
+  const files=(v.video_files||[]).filter(f=>f.file_type==="video/mp4"&&videoAddress(f.link)&&f.width&&f.height);
   files.sort((a,b)=>Math.abs(720-a.width)+Math.abs(1280-a.height)-Math.abs(720-b.width)-Math.abs(1280-b.height));
-  return {id:"pexels-video-"+v.id,kind:"video",src:mediaAddress(files[0]?.link),preview:mediaAddress(v.image),title:clean(query,150),credit:clean("Video by "+(v.user?.name||"Pexels contributor"),160),source:v.url||"https://www.pexels.com",license:"Pexels License",stock:true,exactProduct:false}
+  return {id:"pexels-video-"+v.id,kind:"video",src:videoAddress(files[0]?.link),preview:mediaAddress(v.image),title:clean(query,150),credit:clean("Video by "+(v.user?.name||"Pexels contributor"),160),source:v.url||"https://www.pexels.com",license:"Pexels License",stock:true,exactProduct:false}
  }).filter(x=>x.src);
  return [...videos,...photos];
 }
@@ -49,6 +53,23 @@ async function commons(query,signal){
   return [{id:"commons-"+p.pageid,kind:"image",src,preview,title,credit,source,license,stock:true,exactProduct:false}];
  });
 }
+async function commonsVideos(query,signal){
+ const params=new URLSearchParams({action:"query",generator:"search",gsrsearch:query+" video",gsrnamespace:"6",gsrlimit:"30",prop:"imageinfo",iiprop:"url|mime|extmetadata",format:"json",formatversion:"2"});
+ const data=await jsonFetch("https://commons.wikimedia.org/w/api.php?"+params,{},signal);
+ return (data.query?.pages||[]).flatMap(p=>{
+  const ii=p.imageinfo?.[0],title=clean(p.title,180);
+  if(!ii||!/\.(?:mp4|webm|ogv)$/i.test(title))return [];
+  const license=clean(ii.extmetadata?.LicenseShortName?.value||ii.extmetadata?.License?.value||"",110);
+  if(!validLicense(license))return [];
+  const src=videoAddress(ii.url);
+  if(!src)return [];
+  const preview=mediaAddress(ii.thumburl);
+  const credit=clean(ii.extmetadata?.Artist?.value||"Wikimedia Commons creator",180);
+  return [{id:"commons-video-"+p.pageid,kind:"video",src,preview,title,credit,
+   source:ii.descriptionurl||"https://commons.wikimedia.org/wiki/"+encodeURIComponent(p.title.replace(/ /g,"_")),
+   license,stock:true,exactProduct:false}];
+ });
+}
 module.exports=async (req,res)=>{
  res.setHeader("Cache-Control","no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
@@ -71,6 +92,9 @@ module.exports=async (req,res)=>{
   }
   if(!items.length && /digital\s*(?:photo|picture)?\s*frame/i.test(q)){
    try{items.push(...await commonsPublicDomainFrame(ctrl.signal));via.push('Wikimedia Commons (public-domain fallback)')}catch(e){errors.push('Fallback photo unavailable: '+e.message)}
+  }
+  if(!items.some(x=>x.kind==="video")){
+    try{const clips=await commonsVideos(q,ctrl.signal);items.unshift(...clips.slice(0,4));if(clips.length)via.push("Wikimedia Commons video")}catch(e){errors.push("Licensed clip lookup: "+e.message)}
   }
   const seen=new Set();items=items.filter(x=>!seen.has(x.src)&&(seen.add(x.src),true)).slice(0,16);
   return res.status(200).json({ok:true,query:q,items,providers:[...new Set(via)],warnings:errors,notice:"These are licensed illustrative images/videos, NOT confirmed photos of the exact product. Verify product match before promotional publishing; preserve attribution for CC BY material."});
