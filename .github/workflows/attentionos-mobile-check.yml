@@ -39,6 +39,8 @@ jobs:
           NODE
       - name: Test voice privacy, commercial routing and simulated WAV (no pretrained model calls)
         run: node apps/free-mobile-web/test/voice-smoke.cjs
+      - name: Licensed-media sourcing and safe image proxy tests
+        run: node apps/free-mobile-web/test/creative-media.cjs
       - name: Mock API smoke tests (no Instagram publishing)
         run: node apps/free-mobile-web/test/api-smoke.cjs
       - name: Mock Gemini intelligence and Live tokens (no paid calls)
