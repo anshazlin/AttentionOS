@@ -35,7 +35,7 @@ module.exports=async (req,res)=>{
 
  const previous=history.map(h=>h.text).join(" ").toLowerCase();
  const directResearch=/\b(find|research|search|discover|scout|look for)\b.*\b(trend|product|viral|items|meesho)\b|\btrending products?\b/i.test(prompt);
- const directReel=/\b(make|create|prepare|draft|generate)\b.*\b(reel|video)\b/i.test(prompt);
+ const directReel=/\b(make|create|prepare|draft|generate|edit|render|assemble|cut|produce)\b.*\b(reel|video)\b/i.test(prompt)||/\b(edit|render|produce|assemble)\s+(?:it|that)\b/i.test(prompt)&&/\b(reel|video|draft)\b/i.test(previous);
  const directPublish=/\b(post|publish|upload)\b.*\b(now|instagram|viral|reel|caption|it)\b/i.test(prompt);
  const continueResearch=/^(yes|yeah|okay|ok|sure|go ahead|do it|launch it|start it|proceed|done)$/i.test(prompt.trim()) && /(?:research|trending products?|launching research|research agent)/i.test(previous);
  const getTopic=()=>{
