@@ -38,17 +38,25 @@ function owner(){const t=$("ownerToken")?.value?.trim()||$("jbOwner")?.value?.tr
 async function post(url,body){const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-owner-token":owner()},body:JSON.stringify(body)});const raw=await r.text();let d;try{d=JSON.parse(raw)}catch{throw Error("Server returned HTTP "+r.status+" rather than JSON.")}if(!r.ok||d.ok===false)throw Error(d.error||"Request unsuccessful");return d}
 function clearResults(){if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null}current=null;$("reelOutput").innerHTML=""}
 function open(obj={},options={}){
- idea=obj||{};root.classList.add("visible");
+ const selected=obj||{};
+ if(activeJob){
+  if(idea===selected){root.classList.add("visible");return activeJob}
+  return Promise.resolve({ok:false,stage:"busy",error:"A previous Reel is still rendering. Wait for it to finish before switching products."});
+ }
+ if(current&&current.draft!==selected)clearResults();
+ idea=selected;root.classList.add("visible");
  $("reelQuery").value=String(options.topic||idea.title||"digital photo frame").slice(0,105);
  $("reelHook").value=String(idea.hook||"This affordable home upgrade is worth a look").slice(0,170);
  $("reelCTA").value=String(idea.cta||"Comment GUIDE for the product details").slice(0,140);
  if(options.autoSearch){
-    activeJob=(async()=>{
+    const job=(async()=>{
       await find();
       if(options.autoRender)return await render();
       return {ok:true,stage:"media-found",selected:photos.filter(p=>p.chosen).length};
     })();
-    return activeJob;
+    activeJob=job;
+    job.finally(()=>{if(activeJob===job)activeJob=null}).catch(()=>{});
+    return job;
   }
   tell("Ready to search or upload product images.");
   return Promise.resolve({ok:true,stage:"editor-open"});
@@ -199,7 +207,7 @@ async function render(){
     catch(e){progress("MP4 conversion unavailable on this phone: "+e.message+". Original WebM is preserved.");}
   }
   videoURL=URL.createObjectURL(blob);
-  current={blob,ext,filename:"TrendWale-Reel-"+Date.now()+"."+ext,files:loaded,graphicsOnly:images.length===0};
+  current={blob,ext,filename:"TrendWale-Reel-"+Date.now()+"."+ext,files:loaded,graphicsOnly:images.length===0,draft:idea,mediaUrl:null};
   const box=$("reelOutput");box.innerHTML="";
   const vid=document.createElement("video");vid.src=videoURL;vid.controls=true;vid.playsInline=true;box.append(vid);
   const row=document.createElement("div");row.className="reelRow";
@@ -215,6 +223,8 @@ async function render(){
 }
 async function uploadZernio(){
  if(!current||current.ext!=="mp4"){tell("MP4 required. No Instagram upload was attempted.");return {ok:false,error:"A completed H.264 MP4 is required. Create or convert your Reel first."}}
+ if(current.draft!==idea)return {ok:false,error:"Rendered MP4 belongs to a different product. Rerender the current draft before uploading."};
+ if(current.mediaUrl)return {ok:true,stage:"uploaded-media",mediaUrl:current.mediaUrl,bytes:current.blob.size,publicPost:false,alreadyUploaded:true};
  if(!confirm("Upload the generated MP4 to Zernio as media for your approval? This does NOT publish."))return {ok:false,cancelled:true,error:"Upload was cancelled by the owner."};
  try{
   const result=await post("/api/zernio?action=presign",{action:"presign",filename:current.filename,contentType:"video/mp4",size:current.blob.size});
@@ -234,7 +244,17 @@ async function uploadZernio(){
   return {ok:true,stage:"uploaded-media",mediaUrl:d.publicUrl,bytes:current.blob.size,publicPost:false};
  }catch(e){tell("Not uploaded: "+e.message);return {ok:false,error:String(e.message||e)}}
 }
+async function uploadPrepared(draft){
+ if(!draft)return {ok:false,error:"No current Reel draft. Name the product and ask JARVIS to create it."};
+ if(activeJob){try{const pending=await activeJob;if(pending?.ok===false)return pending}catch(e){return {ok:false,error:"Render failed: "+String(e.message||e)}}}
+ if(!current||current.draft!==draft){
+  const outcome=await open(draft,{topic:draft.researchTopic||draft.title,autoSearch:true,autoRender:true});
+  if(!outcome?.ok)return {ok:false,error:"Real video not finished: "+(outcome?.error||"unsupported video encoder")};
+ }
+ if(!current||current.ext!=="mp4")return {ok:false,error:"Reel exists as WebM, not uploadable MP4. Try a compatible browser or download the WebM and convert it."};
+ return uploadZernio();
+}
 $("reelRender").onclick=render;
 $("reelCancel").onclick=()=>{stop=true;window.ReelMP4?.cancel?.();tell("Stopping edit...")};
-window.ReelStudio={open,find,render,close,uploadZernio,wait:()=>activeJob,state:()=>({open:root.classList.contains("visible"),photos:photos.length,chosen:photos.filter(p=>p.chosen).length,error:lastError,result:current?{format:current.ext,bytes:current.blob.size,graphicsOnly:current.graphicsOnly}:null})};
+window.ReelStudio={open,find,render,close,uploadZernio,uploadPrepared,wait:()=>activeJob,state:()=>({open:root.classList.contains("visible"),photos:photos.length,chosen:photos.filter(p=>p.chosen).length,rendering:!!activeJob,error:lastError,result:current?{format:current.ext,bytes:current.blob.size,graphicsOnly:current.graphicsOnly,title:current.draft?.title||"",uploaded:!!current.mediaUrl}:null})};
 })();
