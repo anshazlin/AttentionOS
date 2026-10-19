@@ -140,16 +140,11 @@ async function runToolCalls(toolCall){
     const edited=await window.ReelStudio.open(d.idea||d,{autoSearch:true,autoRender:true});
     result={ok:!!edited?.ok,draftTitle:d.title,savedLocally:true,videoRendered:!!edited?.ok,videoFormat:edited?.format||null,bytes:edited?.bytes||0,graphicsOnly:!!edited?.graphicsOnly,published:false,needsOriginalMedia:d.needsMedia,note:edited?.ok?'Video file generated. Review the actual result in Reel Studio; approval is required before any upload.':'Actual video render did not finish: '+(edited?.error||'unsupported browser or unavailable media')};
    }else if(fc.name==='upload_reel_media'){
-    if(!window.ReelStudio?.uploadZernio)throw Error('Video editor is unavailable');
-    let st=window.ReelStudio.state?.();
-    if(!st?.result){
-      const draft=window.AttentionAgent?.currentDraft?.();
-      if(!draft)throw Error('No Reel draft exists. Request a Reel first.');
-      const output=await window.ReelStudio.open(draft,{autoSearch:true,autoRender:true});
-      if(!output?.ok)throw Error('Actual video was not rendered: '+(output?.error||'unsupported media encoder'));
-    }
-    const uploaded=await window.ReelStudio.uploadZernio();
-    result=uploaded?.ok?{ok:true,stage:'media-uploaded',videoBytes:uploaded.bytes,mediaUrl:uploaded.mediaUrl,publiclyPosted:false,note:'Real MP4 uploaded into Zernio media library, NOT Instagram published.'}:{ok:false,error:uploaded?.error||'Upload was not approved or failed',publiclyPosted:false};
+    if(!window.ReelStudio?.uploadPrepared)throw Error('Real Reel editor unavailable');
+    const latest=window.AttentionAgent?.currentDraft?.();
+    if(!latest)throw Error('No active Reel. Tell me the product name first.');
+    const uploaded=await window.ReelStudio.uploadPrepared(latest);
+    result=uploaded?.ok?{ok:true,stage:'media-uploaded',title:latest.title,videoBytes:uploaded.bytes,mediaUrl:uploaded.mediaUrl,publiclyPosted:false,note:'Verified MP4 uploaded to Zernio media library for approval, NOT to Instagram.'}:{ok:false,error:uploaded?.error||'Actual MP4 upload failed or was cancelled',publiclyPosted:false};
    }else if(fc.name==='publish_instagram_now'){
     if(!window.AttentionAgent?.publishCurrentNow)throw Error('Instagram publish workflow missing');
     const response=await window.AttentionAgent.publishCurrentNow('caption '+String(fc.args?.caption||'').slice(0,2000));
