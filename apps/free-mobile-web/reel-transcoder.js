@@ -34,7 +34,13 @@ async function convert(blob,cb){
   const wasm=await toBlob(CORE+"ffmpeg-core.wasm","application/wasm",ctrl.signal);urls.push(wasm);
   const ffmpeg=new ffmpegClass();active=ffmpeg;
   ffmpeg.on("progress",({progress})=>info(cb,"Encoding real H.264 MP4: "+Math.max(0,Math.min(99,Math.round(progress*100)))+"%"));
-  await ffmpeg.load({classWorkerURL:worker,coreURL:core,wasmURL:wasm});
+  let loadingTimer;
+  try{
+   await Promise.race([
+    ffmpeg.load({classWorkerURL:worker,coreURL:core,wasmURL:wasm}),
+    new Promise((_,reject)=>{loadingTimer=setTimeout(()=>reject(Error("Browser cannot start free FFmpeg within 75 seconds. Native MP4 is preferred; the original WebM is preserved.")),75000)})
+   ]);
+  }finally{clearTimeout(loadingTimer)}
   if(ctrl.signal.aborted)throw Error("MP4 conversion cancelled");
   await ffmpeg.writeFile("reel.webm",new Uint8Array(await blob.arrayBuffer()));
   info(cb,"Converting video to MP4 on this device. Keep the website open...");
