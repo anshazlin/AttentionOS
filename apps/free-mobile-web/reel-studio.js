@@ -2,7 +2,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let idea=null,photos=[],current=null,busy=false,stop=false,videoURL=null;
+let idea=null,photos=[],current=null,busy=false,stop=false,videoURL=null,lastError=null,activeJob=null;
 const css=document.createElement("style");
 css.textContent=[
 "#reelStudio{position:fixed;inset:0;background:#0b121afb;color:#f4f9f0;display:none;overflow-y:auto;z-index:9750;font:14px system-ui}",
@@ -29,10 +29,11 @@ const root=document.createElement("section");root.id="reelStudio";root.setAttrib
 root.innerHTML='<main><div class="reelRow" style="justify-content:space-between"><h2>TRENDWALE · AUTO REEL STUDIO</h2><button class="reelBtn" id="reelClose">✕ Close</button></div>'+
 '<div class="reelCard"><h3>1. Pick the product</h3><p class="reelFine">JARVIS searches licensed images and turns them into an animated 9:16 video. Stock photos are illustrative and must not be presented as the exact item sold.</p><label class="reelLabel">Product or theme</label><input id="reelQuery" class="reelField" maxlength="105" value="digital photo frame"/><label class="reelLabel">Opening hook</label><textarea id="reelHook" class="reelField" rows="2" maxlength="170"></textarea><label class="reelLabel">Call to action</label><input id="reelCTA" class="reelField" maxlength="140"/><div class="reelRow"><button id="reelFind" class="reelBtn green">🔎 Find licensed product visuals</button><label class="reelBtn" for="reelOwn">↑ Add product photos</label><input id="reelOwn" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden/></div><div id="reelSources" class="reelFine"></div></div>'+
 '<div class="reelCard"><h3>2. Choose scenes</h3><div id="reelImages"><p class="reelFine">No photos selected yet.</p></div><p class="reelWarning">Stock visuals might not show your actual product. Use genuine product photos for accurate advertising. Include required Creative Commons author/license credits in captions.</p></div>'+
-'<div class="reelCard"><h3>3. Generate the edited video</h3><div class="reelRow"><button id="reelRender" class="reelBtn green">🎬 Auto-edit 12-second Reel</button><button id="reelCancel" class="reelBtn">Stop</button></div><canvas id="reelCanvas" width="540" height="960"></canvas><p class="reelFine">The browser adds scene transitions, animated images, captions and branding. MP4 availability depends on your device. WebM cannot be directly published as an Instagram Reel.</p><div id="reelOutput"></div></div>'+
+'<div class="reelCard"><h3>3. Generate the edited video</h3><div class="reelRow"><button id="reelRender" class="reelBtn green">🎬 Auto-edit 12-second Reel</button><button id="reelCancel" class="reelBtn">Stop</button></div><canvas id="reelCanvas" width="540" height="960"></canvas><p class="reelFine">The browser edits images, transitions and text into a vertical Reel. On compatible phones it converts WebM to H.264 MP4 locally using free FFmpeg WebAssembly (first use downloads about 31MB). A graphics-only Reel is available if no licensed pictures are found; it does NOT show a real product.</p><div id="reelOutput"></div></div>'+
 '<div id="reelMessage" role="status" aria-live="polite">Ready, Master. Select your product.</div></main>';
 document.body.appendChild(root);
 const tell=s=>{$("reelMessage").textContent=s};
+const progress=s=>{tell(s);window.dispatchEvent(new CustomEvent("attentionos:reel-progress",{detail:{message:s}}))};
 function owner(){const t=$("ownerToken")?.value?.trim()||$("jbOwner")?.value?.trim();if(!t)throw Error("Enter the private owner code in Automations or JARVIS.");return t}
 async function post(url,body){const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-owner-token":owner()},body:JSON.stringify(body)});const raw=await r.text();let d;try{d=JSON.parse(raw)}catch{throw Error("Server returned HTTP "+r.status+" rather than JSON.")}if(!r.ok||d.ok===false)throw Error(d.error||"Request unsuccessful");return d}
 function clearResults(){if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null}current=null;$("reelOutput").innerHTML=""}
@@ -41,8 +42,17 @@ function open(obj={},options={}){
  $("reelQuery").value=String(options.topic||idea.title||"digital photo frame").slice(0,105);
  $("reelHook").value=String(idea.hook||"This affordable home upgrade is worth a look").slice(0,170);
  $("reelCTA").value=String(idea.cta||"Comment GUIDE for the product details").slice(0,140);
- if(options.autoSearch)Promise.resolve(find()).then(()=>{if(options.autoRender){if(photos.some(p=>p.chosen))render();else tell('No usable licensed photos found. Add your own product photos to finish the Reel.')}});
- else tell("Ready to search or upload product images.");
+ if(options.autoSearch){
+    activeJob=(async()=>{
+      await find();
+      if(options.autoRender)return await render();
+      return {ok:true,stage:"media-found",selected:photos.filter(p=>p.chosen).length};
+    })();
+    return activeJob;
+  }
+  tell("Ready to search or upload product images.");
+  return Promise.resolve({ok:true,stage:"editor-open"});
+
 }
 function close(){stop=true;root.classList.remove("visible")}
 $("reelClose").onclick=close;
@@ -102,22 +112,34 @@ function cover(ctx,img,s){
  ctx.drawImage(img,(540-dw)/2,(960-dh)/2,dw,dh)
 }
 function paint(ctx,imgs,t,story){
- const index=Math.min(imgs.length-1,Math.floor(t/(12/imgs.length)));
- const progress=t/(12/imgs.length)-index;
+ const count=imgs.length||4,index=Math.min(count-1,Math.floor(t/(12/count)));
+ const progress=t/(12/count)-index;
  ctx.fillStyle="#091820";ctx.fillRect(0,0,540,960);
- cover(ctx,imgs[index],1.02+progress*.10);
- if(progress>.8&&index<imgs.length-1){ctx.save();ctx.globalAlpha=(progress-.8)/.2;cover(ctx,imgs[index+1],1.01);ctx.restore()}
+ if(imgs.length){
+  cover(ctx,imgs[index],1.02+progress*.10);
+  if(progress>.8&&index<imgs.length-1){ctx.save();ctx.globalAlpha=(progress-.8)/.2;cover(ctx,imgs[index+1],1.01);ctx.restore()}
+ }else{
+  const g=ctx.createLinearGradient(0,0,540,960);
+  g.addColorStop(0,index%2?"#213d39":"#12212b");g.addColorStop(1,index%2?"#162526":"#36522c");
+  ctx.fillStyle=g;ctx.fillRect(0,0,540,960);
+  ctx.strokeStyle="#b8f47e66";ctx.lineWidth=3;
+  for(let n=0;n<7;n++){
+   ctx.beginPath();ctx.arc(270,390,(45+n*37)+(progress*25),0,Math.PI*2);ctx.stroke();
+  }
+  ctx.fillStyle="#f3ffee";ctx.font="bold 23px system-ui";
+  ctx.fillText("ORIGINAL MOTION GRAPHIC",30,265);
+ }
  const g=ctx.createLinearGradient(0,340,0,960);g.addColorStop(0,"#08151a00");g.addColorStop(1,"#061018ee");ctx.fillStyle=g;ctx.fillRect(0,340,540,620);
  ctx.fillStyle="#b8f47e";ctx.fillRect(30,49,480,7);
  ctx.fillStyle="#fff";ctx.font="bold 31px system-ui";ctx.fillText("TRENDWALE",30,109);
  ctx.font="19px system-ui";ctx.fillText("Budget finds · Product inspiration",30,145);
- let copy=index===0?story.hook:index===imgs.length-1?story.cta:index===1?story.title:"Check photos, features and reviews";
+ let copy=index===0?story.hook:index===count-1?story.cta:index===1?story.title:"Check photos, features and reviews";
  ctx.font="bold 45px system-ui";const textLines=wrap(ctx,copy,470,5);
  textLines.forEach((line,i)=>ctx.fillText(line,30,670-(textLines.length-1)*24+i*60));
  ctx.fillStyle="#b8f47e";ctx.font="20px system-ui";ctx.fillText("Comment GUIDE for details",30,890);
  ctx.fillStyle="#ffffff4f";ctx.fillRect(30,922,480,8);
  ctx.fillStyle="#b8f47e";ctx.fillRect(30,922,480*Math.min(t/12,1),8);
- if(story.stock){ctx.fillStyle="#fff";ctx.font="14px system-ui";ctx.fillText("Illustrative stock footage • Product not verified",30,188)}
+ if(story.stock||story.graphicsOnly){ctx.fillStyle="#fff";ctx.font="14px system-ui";ctx.fillText(story.graphicsOnly?"Illustrative motion graphics · NOT product footage":"Illustrative stock images · Product not verified",30,188)}
 }
 function mime(){
  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream)throw Error("Video recording is unsupported. Try Chrome on your phone.");
@@ -125,20 +147,19 @@ function mime(){
  const type=allowed.find(x=>MediaRecorder.isTypeSupported(x));if(!type)throw Error("No supported video codec");return type
 }
 async function render(){
- if(busy)return;const selected=photos.filter(x=>x.chosen).slice(0,5);
- if(selected.length<1){tell("Select at least one genuine or licensed photo to make the Reel.");return}
- busy=true;stop=false;$("reelRender").disabled=true;clearResults();
+ if(busy)return {ok:false,error:"An edit is already in progress"};const selected=photos.filter(x=>x.chosen).slice(0,5);
+ busy=true;stop=false;lastError=null;$("reelRender").disabled=true;clearResults();
  const loaded=[],images=[];let recorder;
  try{
   tell("Loading photos for 12-second edited video...");
   for(const p of selected){if(stop)throw Error("Editing stopped");try{loaded.push(p);images.push(await load(p))}catch(e){tell("Skipped a photo: "+e.message)}}
-  if(images.length<1)throw Error("No images loaded. Add original product photos.");
+  if(images.length<1)progress("No licensable product visuals loaded. Creating a labeled motion-graphic Reel rather than inventing footage.");
   if(images.length===1){images.push(images[0],images[0]);}
   const type=mime(),canvas=$("reelCanvas"),ctx=canvas.getContext("2d"),chunks=[];
   recorder=new MediaRecorder(canvas.captureStream(20),{mimeType:type,videoBitsPerSecond:1600000});
   recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};
   const recorded=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=e=>reject(Error(e.error?.message||"Recorder error"))});
-  const story={hook:$("reelHook").value,title:$("reelQuery").value,cta:$("reelCTA").value,stock:loaded.some(x=>!x.own)};
+  const story={hook:$("reelHook").value,title:$("reelQuery").value,cta:$("reelCTA").value,stock:loaded.some(x=>!x.own),graphicsOnly:images.length===0};
   const started=performance.now();
   paint(ctx,images,0,story);recorder.start(800);
   tell("Editing video now. Keep this page open for 12 seconds...");
@@ -152,20 +173,25 @@ async function render(){
   });
   await recorded;
   if(!chunks.length)throw Error("Your phone encoded no frames.");
-  const ext=type.startsWith("video/mp4")?"mp4":"webm",blob=new Blob(chunks,{type});
+  let ext=type.startsWith("video/mp4")?"mp4":"webm",blob=new Blob(chunks,{type});
   if(blob.size<10000)throw Error("The encoder produced an empty video. Try a different browser.");
+  if(ext==="webm"&&window.ReelMP4){
+    try{blob=await window.ReelMP4.convert(blob,progress);ext="mp4"}
+    catch(e){progress("MP4 conversion unavailable on this phone: "+e.message+". Original WebM is preserved.");}
+  }
   videoURL=URL.createObjectURL(blob);
-  current={blob,ext,filename:"TrendWale-Reel-"+Date.now()+"."+ext,files:loaded};
+  current={blob,ext,filename:"TrendWale-Reel-"+Date.now()+"."+ext,files:loaded,graphicsOnly:images.length===0};
   const box=$("reelOutput");box.innerHTML="";
   const vid=document.createElement("video");vid.src=videoURL;vid.controls=true;vid.playsInline=true;box.append(vid);
   const row=document.createElement("div");row.className="reelRow";
   const link=document.createElement("a");link.className="reelBtn green";link.href=videoURL;link.download=current.filename;link.textContent="↓ Download "+ext.toUpperCase()+" Reel";
   const btn=document.createElement("button");btn.className="reelBtn";btn.disabled=ext!=="mp4";btn.textContent="↑ Upload MP4 to Zernio (not publish)";btn.onclick=uploadZernio;
   row.append(link,btn);box.append(row);
-  const msg=document.createElement("p");msg.className="reelFine";msg.textContent="Real 12-second video, "+loaded.length+" scenes. "+(ext==="mp4"?"MP4 is ready for your review.":"Your browser only generated WebM. This file needs MP4 conversion before Instagram.");box.append(msg);
+  const msg=document.createElement("p");msg.className="reelFine";msg.textContent="Real 12-second edited video · "+(loaded.length||"original motion graphic")+" scenes. "+(ext==="mp4"?"MP4 is ready for review.":"WebM produced; browser-side MP4 conversion failed or is unavailable.")+(current.graphicsOnly?" This is NOT real product footage.":"");box.append(msg);
   for(const p of loaded.filter(x=>!x.own)){const a=document.createElement("a");a.href=p.source;a.rel="noopener noreferrer";a.target="_blank";a.textContent=p.credit+" · "+p.license+" / ";box.append(a)}
-  tell("The actual "+ext.toUpperCase()+" video is ready. "+(ext==="mp4"?"You can approve a Zernio upload.":"Convert WebM to MP4 before publishing."));
- }catch(e){tell("Video NOT finished: "+e.message);if(recorder?.state==="recording")recorder.stop()}
+  progress("Rendered actual "+ext.toUpperCase()+" video. "+(current.graphicsOnly?"This is a motion-graphic illustration, not real product footage. ":"")+(ext==="mp4"?"Review, then optionally upload as media to Zernio.":"Save WebM, or retry on a compatible phone for MP4."));
+  return {ok:true,stage:"rendered",format:ext,bytes:blob.size,graphicsOnly:current.graphicsOnly,uploadReady:ext==="mp4"};
+ }catch(e){lastError=e.message;progress("Video NOT finished: "+e.message);if(recorder?.state==="recording")recorder.stop();return {ok:false,stage:"render-failed",error:e.message}}
  finally{loaded.forEach(p=>{if(p.temporaryURL){URL.revokeObjectURL(p.temporaryURL);delete p.temporaryURL}});busy=false;$("reelRender").disabled=false}
 }
 async function uploadZernio(){
@@ -188,6 +214,6 @@ async function uploadZernio(){
  }catch(e){tell("Not uploaded: "+e.message)}
 }
 $("reelRender").onclick=render;
-$("reelCancel").onclick=()=>{stop=true;tell("Stopping edit...")};
-window.ReelStudio={open,find,render,close,uploadZernio,state:()=>({open:root.classList.contains("visible"),photos:photos.length,chosen:photos.filter(p=>p.chosen).length,result:current?{format:current.ext,bytes:current.blob.size}:null})};
+$("reelCancel").onclick=()=>{stop=true;window.ReelMP4?.cancel?.();tell("Stopping edit...")};
+window.ReelStudio={open,find,render,close,uploadZernio,wait:()=>activeJob,state:()=>({open:root.classList.contains("visible"),photos:photos.length,chosen:photos.filter(p=>p.chosen).length,error:lastError,result:current?{format:current.ext,bytes:current.blob.size,graphicsOnly:current.graphicsOnly}:null})};
 })();
