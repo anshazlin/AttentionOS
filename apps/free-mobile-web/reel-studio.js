@@ -237,7 +237,7 @@ async function uploadZernio(){
    const attribution=credits.length?"\n\nMedia credits: "+[...new Set(credits)].join("; ").slice(0,670):"";
    const qualifier=current.graphicsOnly?"\nOriginal motion-graphic concept — no actual product footage.":usesStock?"\nIllustrative stock footage; check the actual listing for product details.":"";
    idea.caption=(prefix+qualifier+attribution).slice(0,2180);
-   idea.mediaUrl=d.publicUrl;idea.saved=true;
+   idea.mediaUrl=d.publicUrl;idea.mediaType="video";idea.saved=true;
   }
   current.mediaUrl=d.publicUrl;
   tell("Uploaded real MP4 to Zernio media library. NOT published. Review the media and approve an Instagram post separately.");
