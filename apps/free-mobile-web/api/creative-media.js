@@ -5,7 +5,7 @@ function owner(a,b){const x=Buffer.from(String(a||"")),y=Buffer.from(String(b||"
 function clean(v,max=200){return String(v??"").replace(/<[^>]*>/g," ").replace(/&(?:amp|lt|gt|quot|nbsp);/g," ").replace(/\s+/g," ").trim().slice(0,max)}
 const compatible=new Set(["CC0","CC0 1.0","CC BY 4.0","CC BY 3.0","CC BY 2.0","CC BY 2.5","CC BY 1.0","Public domain","PD","Public Domain Mark 1.0"]);
 function validLicense(str){let s=clean(str,100);return compatible.has(s)||/^CC BY (?:[1-4](?:\.0)?)$/i.test(s)||/^CC0(?: 1\.0)?$/i.test(s)||/^Public domain$/i.test(s)}
-function mediaAddress(raw){try{const u=new URL(raw);return u.protocol==="https:"&&["images.pexels.com","upload.wikimedia.org"].includes(u.hostname)&&u.username===""&&u.password===""?u.toString():null}catch{return null}}
+function mediaAddress(raw){try{const u=new URL(raw);return u.protocol==="https:"&&["images.pexels.com","upload.wikimedia.org","live.staticflickr.com"].includes(u.hostname)&&u.username===""&&u.password===""?u.toString():null}catch{return null}}
 function videoAddress(raw){try{
  const u=new URL(raw);
  return u.protocol==="https:"&&["videos.pexels.com","upload.wikimedia.org"].includes(u.hostname)&&!u.port&&!u.username&&!u.password&&u.href.length<1800&&/\.(mp4|webm|ogv)(?:$|\?)/i.test(u.pathname+u.search)?u.toString():null
@@ -81,7 +81,7 @@ function queryTerms(original){
  return [...new Set(terms.map(x=>x.trim()).filter(x=>x.length>=3))].slice(0,6);
 }
 async function openverse(query,signal){
- const params=new URLSearchParams({q:query,source:"wikimedia",license:"cc0,pdm,by",page_size:"15"});
+ const params=new URLSearchParams({q:query,source:"wikimedia,flickr",license:"cc0,pdm,by",page_size:"15"});
  const data=await jsonFetch("https://api.openverse.org/v1/images/?"+params,{},signal);
  return (data.results||[]).flatMap(item=>{
   const src=mediaAddress(item.url),preview=mediaAddress(item.thumbnail)||src;
@@ -117,7 +117,7 @@ module.exports=async (req,res)=>{
      for(const term of terms.slice(0,4)){
        try{
         const found=await openverse(term,ctrl.signal);
-        items.push(...found);if(found.length)via.push("Openverse licensed Wikimedia");
+        items.push(...found);if(found.length)via.push("Openverse licensed Flickr/Wikimedia");
        }catch(e){errors.push("Openverse '"+term+"': "+e.message)}
        if(items.filter(x=>x.kind==="image").length>=4)break;
      }
