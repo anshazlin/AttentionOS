@@ -10,7 +10,8 @@ async function main(){
  const a=await askServer('Find trending products for TrendWale');assert.equal(a.action,'research_products');
  const b=await askServer('launch it',[{role:'model',text:'Shall I research trending products?'}]);assert.equal(b.action,'research_products');
  const c=await askServer('Make a reel draft');assert.equal(c.action,'prepare_reel');
- const d=await askServer('Now post it with caption viral');assert.equal(d.action,'review_post');
+ const d=await askServer('Now post it with caption viral');assert.equal(d.action,'publish_now');
+ const up=await askServer('Upload it');assert.equal(up.action,'upload_reel_media');
  const dummy={ok:true,mode:'templates',sources:[{title:'Public example on budget organizers',url:'https://example.org/source'}],ideas:[{title:'Useful organizer guide',hook:'Smart storage tip',script:'Show and explain',shotList:['Close-up','Use case'],caption:'Organizer ideas',hashtags:'#TrendWale',cta:'Comment GUIDE',sourceUrl:''}]};
  let apiCalls=[],anyPost=false;
  class Resources extends ResourceLoader{fetch(url){if(url.endsWith('/agent.js'))return Promise.resolve(Buffer.from(fs.readFileSync('apps/free-mobile-web/agent.js','utf8')));if(url.endsWith('/reel-studio.js'))return Promise.resolve(Buffer.from(fs.readFileSync('apps/free-mobile-web/reel-studio.js','utf8')));return Promise.resolve(Buffer.from(''))}}
@@ -46,9 +47,12 @@ async function main(){
  assert.equal(w.ReelStudio.state().open,true,'Video editor not opened after JARVIS edit request');
  assert.ok(w.localStorage.getItem('attentionos_free_mobile_v1')?.includes('Useful organizer guide'),'Draft not actually persisted');
  assert.equal(w.document.querySelector('#agentIdeas input[data-field="title"]').value,'Useful organizer guide','Reel concept not rendered');
+ await w.JARVISBetter.chat('Upload it');
+ messages=[...w.document.querySelectorAll('#jbMessages .jbBubble')].map(x=>x.textContent);
+ assert.ok(messages.some(x=>x.includes('Nothing uploaded')),'No upload may be claimed without a rendered MP4');
  await w.JARVISBetter.chat('Now post it with caption viral');
  messages=[...w.document.querySelectorAll('#jbMessages .jbBubble')].map(x=>x.textContent);
- assert.ok(messages.some(x=>x.includes('NOT posted')&&x.includes('No verified media')),'Must tell Master publishing did not happen');
+ assert.ok(messages.some(x=>x.includes('Instagram was NOT published')&&x.includes('media')),'Must report that publishing did not happen without approved MP4 media');
  assert.equal(anyPost,false,'Publishing must never occur without approved media');
  assert.ok(!errors.some(x=>x.includes('Uncaught')),'Uncaught browser exception: '+errors.join('|'));
  dom.window.close();
