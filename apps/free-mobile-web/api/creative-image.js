@@ -4,7 +4,7 @@ function equal(a,b){const x=Buffer.from(String(a||"")),y=Buffer.from(String(b||"
 function checked(s){
  try{
   const u=new URL(s);
-  if(u.protocol!=="https:"||!["images.pexels.com","upload.wikimedia.org"].includes(u.hostname)||u.port||u.username||u.password)return null;
+  if(u.protocol!=="https:"||!["images.pexels.com","upload.wikimedia.org","live.staticflickr.com"].includes(u.hostname)||u.port||u.username||u.password)return null;
   if(u.pathname.length>900||u.href.length>1600)return null;
   return u.toString();
  }catch{return null}
