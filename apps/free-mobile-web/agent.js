@@ -22,18 +22,37 @@ var el=function(id){return document.getElementById(id)};
 var esc=function(v){return String(v===undefined?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 var owner=function(){return (el('jbOwner')&&el('jbOwner').value.trim())||(el('ownerToken')&&el('ownerToken').value.trim())||''};
 var account=function(){return el('socialAccountId')&&el('socialAccountId').value.trim()};
+async function resolveInstagramAccount(){
+ var explicit=account();
+ if(/^[a-zA-Z0-9_:-]{2,130}$/.test(explicit))return explicit;
+ var response=await api('/api/zernio?action=accounts',{action:'accounts'});
+ var all=response.data?.accounts||response.data?.data||response.accounts||response.data||[];
+ if(!Array.isArray(all))all=all.accounts||[];
+ var connected=all.filter(a=>String(a.platform||a.type||"").toLowerCase()==='instagram');
+ if(connected.length!==1)throw Error(connected.length===0?'No Instagram account connected in this Zernio API key.':'Multiple Instagram accounts connected; choose the correct account in Automations.');
+ var value=connected[0]._id||connected[0].id||connected[0].accountId;
+ if(!/^[a-zA-Z0-9_:-]{2,130}$/.test(String(value||"")))throw Error('Zernio returned an invalid Instagram account ID');
+ var control=el('socialAccountId');
+ if(control){control.value=String(value);control.dispatchEvent(new Event('change',{bubbles:true}))}
+ return String(value);
+}
 var note=function(x){el('agentNote').textContent=x};
 var css=document.createElement('style');
 css.textContent='#agentOpen{position:fixed;left:10px;bottom:93px;z-index:3800;background:#b8f480;color:#132015;padding:12px 14px;border:0;border-radius:16px;font:800 13px system-ui;box-shadow:0 7px 19px #0008}#agentView{position:fixed;inset:0;z-index:5000;display:none;overflow-y:auto;background:#0b1118;color:#f3f4f6;font:14px system-ui}#agentView.show{display:block}#agentBody{max-width:870px;margin:auto;padding:20px 16px 110px}.agentCard{background:#171f2a;border:1px solid #374557;border-radius:16px;padding:17px;margin:16px 0}.agentCard h2,.agentCard h3{margin:0 0 12px}.agentRow{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.agentBtn{border:1px solid #526173;border-radius:12px;padding:12px 15px;background:#233141;color:#fff;font:700 13px system-ui;cursor:pointer}.agentBtn.primary{background:#b8f480;color:#132015;border-color:#b8f480}.agentInput{width:100%;box-sizing:border-box;background:#0b1722;color:#fff;border:1px solid #556373;border-radius:10px;padding:12px;font:14px system-ui}.agentLabel{font-weight:700;color:#cbd4da;font-size:12px;display:block;margin:12px 0 5px}.agentMuted{color:#aab6c5;line-height:1.5;font-size:13px}.agentSource{display:block;padding:8px 0;border-bottom:1px solid #36414b;color:#b8f480}.agentStatus{background:#294233;color:#b8f480;padding:5px 9px;border-radius:10px;font-size:11px;font-weight:800}.agentWarn{padding:10px;background:#332b1b;border-radius:10px;color:#e5cd99;margin:11px 0}#agentNote{background:#b8f480;color:#142015;padding:12px;position:sticky;bottom:4px;border-radius:12px;font-weight:700;white-space:pre-wrap}';
 document.head.appendChild(css);
 var trigger=document.createElement('button');trigger.id='agentOpen';trigger.type='button';trigger.textContent='✨ JARVIS AGENT';document.body.appendChild(trigger);
 var panel=document.createElement('section');panel.id='agentView';
-panel.innerHTML='<div id="agentBody"><div class="agentRow" style="align-items:center;justify-content:space-between"><h2>✦ JARVIS Agent Studio</h2><button class="agentBtn" id="agentClose">✕ Close</button></div><p class="agentMuted">TrendWale • Research → 3 scripts → original Reel card → your approval → Zernio schedule</p><div class="agentCard"><h3>One command, three Reels</h3><p class="agentMuted">Research news leads. Trend scores and competitors are not independently verified.</p><label class="agentLabel">Product category to research</label><textarea class="agentInput" id="agentTopic" rows="3">Affordable home organizers, phone accessories and budget products for Indian shoppers</textarea><div class="agentRow"><button class="agentBtn primary" id="agentPlan">🔎 Research + prepare 3 Reels</button><button class="agentBtn" id="agentStats">📊 Instagram analytics</button></div><p class="agentMuted" id="agentMode">Templates are free; an optional free-tier Gemini API key is needed for model-written scripts. ChatGPT Plus itself is not a server API.</p></div><div class="agentCard" id="agentSources" style="display:none"></div><div id="agentIdeas"></div><div class="agentCard"><h3>Real Instagram results</h3><div class="agentMuted" id="agentAnalytics">Press Instagram analytics to load metrics directly from Zernio.</div><div class="agentRow"><button class="agentBtn" id="agentDM">💬 Comment-to-DM settings</button><button class="agentBtn" id="agentCal">🗓️ Content calendar</button></div></div><div id="agentNote" aria-live="polite">Ready, Master. Your approval is required before publishing or scheduling.</div></div>';
+panel.innerHTML='<div id="agentBody"><div class="agentRow" style="align-items:center;justify-content:space-between"><h2>✦ JARVIS Agent Studio</h2><button class="agentBtn" id="agentClose">✕ Close</button></div><p class="agentMuted">TrendWale • Research → 3 scripts → original Reel card → your approval → Zernio schedule</p><div class="agentCard"><h3>One command, three Reels</h3><p class="agentMuted">Research news leads. Trend scores and competitors are not independently verified.</p><label class="agentLabel">Product category to research</label><textarea class="agentInput" id="agentTopic" rows="3">Affordable home organizers, phone accessories and budget products for Indian shoppers</textarea><div class="agentRow"><button class="agentBtn primary" id="agentPlan">🔎 Research + prepare 3 Reels</button><button class="agentBtn" id="agentStats">📊 Instagram analytics</button></div><p class="agentMuted" id="agentMode">Templates are free; an optional free-tier Gemini API key is needed for model-written scripts. ChatGPT Plus itself is not a server API.</p></div><div class="agentCard" id="agentSources" style="display:none"></div><div id="agentIdeas"></div><div class="agentCard"><h3>Instagram publishing readiness</h3><p class="agentMuted">After a real MP4 is created, JARVIS uploads it to Zernio storage for approval. Public publishing always requires confirmation.</p><div class="agentRow"><button class="agentBtn" id="agentCheckInstagram">Check connected Instagram</button></div><p class="agentMuted" id="agentConnection">Not checked in this session.</p></div><div class="agentCard"><h3>Real Instagram results</h3><div class="agentMuted" id="agentAnalytics">Press Instagram analytics to load metrics directly from Zernio.</div><div class="agentRow"><button class="agentBtn" id="agentDM">💬 Comment-to-DM settings</button><button class="agentBtn" id="agentCal">🗓️ Content calendar</button></div></div><div id="agentNote" aria-live="polite">Ready, Master. Your approval is required before publishing or scheduling.</div></div>';
 document.body.appendChild(panel);
 var open=function(command){panel.classList.add('show');if(command){el('agentTopic').value=command.slice(0,230)}};
 trigger.onclick=function(){open()};
 el('agentClose').onclick=function(){panel.classList.remove('show')};
 el('agentPlan').onclick=()=>plan().catch(()=>{});el('agentStats').onclick=analytics;
+el('agentCheckInstagram').onclick=async function(){
+ const line=el('agentConnection');line.textContent="Checking your private Zernio Instagram connection…";
+ try{const id=await resolveInstagramAccount();line.textContent="Instagram account connected and selected. Account ID: "+id+". Upload a verified MP4 before publishing."}
+ catch(e){line.textContent="Connection could not be verified: "+e.message}
+};
 el('agentDM').onclick=function(){panel.classList.remove('show');if(typeof navigate==='function')navigate('automations');el('dmKeywords')&&el('dmKeywords').scrollIntoView({behavior:'smooth'})};
 el('agentCal').onclick=function(){panel.classList.remove('show');if(typeof navigate==='function')navigate('calendar')};
 var dateStr=function(){var d=new Date();d.setDate(d.getDate()+1);d.setHours(19,0,0,0);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'T19:00'};
@@ -84,9 +103,10 @@ function reviewPost(message){
  return {ready:x.saved&&mediaReady,title:x.title,mediaReady,draftApproved:x.saved,reason:!mediaReady?'No verified media file has been uploaded. Add your own MP4/JPG before publishing.':!x.saved?'Approve the Reel draft before publishing.':'Use Review & publish now and confirm the Instagram action.'};
 }
 async function publishNow(i){
- const x=ideas[i],id=account();
+ const x=ideas[i];
  if(!x||!x.saved){note("Please approve the Reel draft first.");return {ok:false,error:"Approve the draft first"}}
- if(!/^[\w:-]{2,130}$/.test(id)){note("Choose your connected Instagram account ID first.");return {ok:false,error:"Instagram account ID missing"}}
+ let id;
+ try{id=await resolveInstagramAccount()}catch(e){note("Instagram connection unavailable: "+e.message);return {ok:false,error:String(e.message)}}
  const media=String(x.mediaUrl||"");
  if(!/^https:\/\/\S+$/i.test(media)||/instagram\.com\/(reel|p)\//i.test(media)){
   note("Cannot publish without an uploaded MP4/JPG. A viral Reel page URL is not media.");
