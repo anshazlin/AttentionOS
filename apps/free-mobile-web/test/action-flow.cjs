@@ -41,7 +41,7 @@ async function main(){
  assert.ok(apiCalls.some(x=>x==='/api/agent'),'No actual research API call was made');
  await w.JARVISBetter.chat('Make a reel draft');
  messages=[...w.document.querySelectorAll('#jbMessages .jbBubble')].map(x=>x.textContent);
- assert.ok(messages.some(x=>x.includes('started the automatic video editor')),'Real auto-editor not initiated after drafting');
+ assert.ok(messages.some(x=>x.includes('Video NOT completed')&&x.includes('Video recording is unsupported')),'JARVIS falsely claimed video creation instead of reporting the missing encoder');
  assert.ok(w.ReelStudio,'Real Reel editor did not load');
  assert.equal(w.ReelStudio.state().open,true,'Video editor not opened after JARVIS edit request');
  assert.ok(w.localStorage.getItem('attentionos_free_mobile_v1')?.includes('Useful organizer guide'),'Draft not actually persisted');
@@ -52,6 +52,6 @@ async function main(){
  assert.equal(anyPost,false,'Publishing must never occur without approved media');
  assert.ok(!errors.some(x=>x.includes('Uncaught')),'Uncaught browser exception: '+errors.join('|'));
  dom.window.close();
- console.log('PASS: real research invokes API, video editor opens and creates draft, posting remains blocked without reviewed media.');
+ console.log('PASS: research invokes API, draft is saved, unavailable video encoder is honestly reported, and unapproved publishing stays blocked.');
 }
 main().catch(e=>{console.error(e.stack||e);process.exitCode=1});
