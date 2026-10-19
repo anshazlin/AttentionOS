@@ -189,7 +189,7 @@ async function runToolCalls(toolCall){
     if(!window.AttentionAgent?.makeDraft)throw Error('Reel draft editor is unavailable');
     const d=await window.AttentionAgent.makeDraft(topic);
     if(!window.ReelStudio?.open)throw Error('Real Reel editor unavailable');
-    const edited=await window.ReelStudio.open(d.idea||d,{autoSearch:true,autoRender:true});
+    const edited=await window.ReelStudio.open(d.idea||d,{topic:d.topic||d.title,autoSearch:true,autoRender:true});
     result={ok:!!edited?.ok,draftTitle:d.title,savedLocally:true,videoRendered:!!edited?.ok,videoFormat:edited?.format||null,bytes:edited?.bytes||0,graphicsOnly:!!edited?.graphicsOnly,published:false,needsOriginalMedia:d.needsMedia,note:edited?.ok?'Video file generated. Review the actual result in Reel Studio; approval is required before any upload.':'Actual video render did not finish: '+(edited?.error||'unsupported browser or unavailable media')};
    }else if(fc.name==='upload_reel_media'){
     if(!window.ReelStudio?.uploadPrepared)throw Error('Real Reel editor unavailable');
