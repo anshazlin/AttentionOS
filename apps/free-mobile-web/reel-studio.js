@@ -175,7 +175,15 @@ async function uploadZernio(){
   const result=await post("/api/zernio?action=presign",{action:"presign",filename:current.filename,contentType:"video/mp4",size:current.blob.size});
   const d=result.data||result;if(!d.uploadUrl||!d.publicUrl)throw Error("Zernio media upload URL unavailable");
   const r=await fetch(d.uploadUrl,{method:"PUT",headers:{"Content-Type":"video/mp4"},body:current.blob});if(!r.ok)throw Error("Media upload failed HTTP "+r.status);
-  if(idea){idea.mediaUrl=d.publicUrl;idea.saved=true}
+  if(idea){
+   const usesStock=current.files.some(p=>!p.own);
+   const credits=current.files.filter(p=>!p.own).map(p=>p.credit+" ("+p.license+") "+p.source).filter(Boolean);
+   const prefix=String(idea.caption||"").slice(0,1300);
+   const attribution=credits.length?"\n\nMedia credits: "+[...new Set(credits)].join("; ").slice(0,670):"";
+   const qualifier=usesStock?"\nIllustrative footage; check actual listing for product details.":"";
+   idea.caption=(prefix+qualifier+attribution).slice(0,2180);
+   idea.mediaUrl=d.publicUrl;idea.saved=true;
+  }
   tell("Uploaded to Zernio media library. NOT published. Review and approve from Automations.");
  }catch(e){tell("Not uploaded: "+e.message)}
 }
