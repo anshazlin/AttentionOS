@@ -20,8 +20,15 @@ async function main(){
  assert.equal(good.statusCode,200);
  assert.equal(good.payload.reply,'I can help, Master.');
  assert.equal(good.payload.action,'open_agent');
- const request=got[0];assert.match(request.url,/gemini-3\.8-flash/);assert.equal(request.options.headers['x-goog-api-key'],'safe-testing-gemini');
+ const request=got[0];assert.match(request.url,/gemini-3\.5-flash-lite/);assert.equal(request.options.headers['x-goog-api-key'],'safe-testing-gemini');
  assert.doesNotMatch(request.options.body,/safe-testing-owner/);
+ const callsBeforeGreeting=got.length;
+ const greeting=response();
+ await chat({method:'POST',headers:{'x-owner-token':'safe-testing-owner'},body:{message:'Hey'}},greeting);
+ assert.equal(greeting.statusCode,200);
+ assert.equal(greeting.payload.model,'local-greeting');
+ assert.match(greeting.payload.reply,/Master/);
+ assert.equal(got.length,callsBeforeGreeting,'Simple greeting should not spend API credits or time out');
  const liveResponse=response();
  await live({method:'POST',headers:{'x-owner-token':'safe-testing-owner'},body:{}},liveResponse);
  assert.equal(liveResponse.statusCode,200);
