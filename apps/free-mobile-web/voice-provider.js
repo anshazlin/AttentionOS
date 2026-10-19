@@ -6,7 +6,7 @@ if(!jarvis||!get("jbMessages"))return;
 const style=document.createElement("style");
 style.textContent="#voiceSettings{margin:12px 0;background:#101c26;border:1px solid #385063;border-radius:13px;padding:13px;text-align:left}#voiceSettings details summary{font-size:13px;font-weight:750;color:#c7efac;cursor:pointer}#voiceSettings .vrRow{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:10px 0}#voiceSettings select,#voiceSettings input{font:inherit;background:#0a1520;border:1px solid #526474;border-radius:10px;color:#eef6e8;padding:9px;min-width:0;max-width:100%}#voiceSettings button{border:1px solid #547048;border-radius:10px;background:#b8f47e;color:#132016;padding:8px 11px;font:700 12px system-ui}#vrStatus{font-size:12px;color:#bbd6bc;line-height:1.45}#vrStatus.error{color:#f2bea6}";
 document.head.appendChild(style);
-const div=document.createElement("div");div.id="voiceSettings";
+const div=document.createElement("div");div.id="voiceSettings";div.style.display="none";
 div.innerHTML='<details><summary>🔊 Private voice engine <span id="vrBadge">(checking connection)</span></summary>'+
 '<p class="jbSmall">Personal use: permitted OmniVoice when available. TrendWale commercial content: Kokoro. Both need a private model server; no subscription voice API is connected here.</p>'+
 '<label class="jbLabel" for="vrPurpose">Voice usage</label><select id="vrPurpose"><option value="personal">Personal JARVIS conversation</option><option value="commercial">TrendWale commercial content</option></select>'+
@@ -46,11 +46,11 @@ async function status(){
  try{
   const r=await fetch("/api/voice",{cache:"no-store"});
   const d=await r.json();
-  st.configured=Boolean(d.configured);
+  st.configured=Boolean(d.configured);div.style.display=st.configured?"block":"none";
   get("vrBadge").textContent=st.configured?"(host configured)":"(requires model host)";
   if(!st.configured){setVoice(false);note("Speech server not yet hosted. See services/voice/README.md in your private GitHub project.");}
   else note("Model host configured. Enable natural speech and test a short sample.");
- }catch(e){st.configured=false;setVoice(false);note("Voice connection status unavailable: "+e.message,true)}
+ }catch(e){st.configured=false;div.style.display="none";setVoice(false);note("Voice connection status unavailable: "+e.message,true)}
  finally{st.checking=false}
 }
 get("vrSpeed").oninput=()=>get("vrSpeedValue").textContent=Number(get("vrSpeed").value).toFixed(2)+"×";
