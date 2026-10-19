@@ -26,6 +26,8 @@ async function connect(){
       {name:'research_products',description:'Actually research public source leads and prepare three product Reel concepts in the AttentionOS editor. Use for finding trending products or research, instead of claiming the research was launched.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A specific product niche or category, such as budget home organizers or phone accessories'}}}},
       {name:'prepare_reel_draft',description:'Create a local Reel draft, find licensed visuals and attempt to render a real 12-second video in Reel Studio. Report success only if actual video bytes were recorded. Never auto-publish.',parameters:{type:'OBJECT',properties:{topic:{type:'STRING',description:'A niche or product topic'}}}},
       {name:'review_instagram_post',description:'Open Instagram review in AttentionOS and report if media is missing. Never publish without user final confirmation.',parameters:{type:'OBJECT',properties:{caption:{type:'STRING',description:'Desired caption text, if any'}}}},
+      {name:'upload_reel_media',description:'Upload an already generated MP4 video into Zernio media library after explicit owner confirmation. NOT public Instagram posting.',parameters:{type:'OBJECT',properties:{}}},
+      {name:'publish_instagram_now',description:'For an explicit request to publish an uploaded Reel immediately. Checks media and requires owner confirmation before posting. Never claim final delivery until confirmed.',parameters:{type:'OBJECT',properties:{caption:{type:'STRING',description:'Desired caption to set before approval, if any'}}}},
       {name:'show_instagram_analytics',description:'Fetch actual Instagram analytics from connected Zernio without guessing metrics',parameters:{type:'OBJECT',properties:{}}},
       {name:'open_calendar',description:'Show content calendar inside AttentionOS',parameters:{type:'OBJECT',properties:{}}}
     ]}],
@@ -137,6 +139,21 @@ async function runToolCalls(toolCall){
     if(!window.ReelStudio?.open)throw Error('Real Reel editor unavailable');
     const edited=await window.ReelStudio.open(d.idea||d,{autoSearch:true,autoRender:true});
     result={ok:!!edited?.ok,draftTitle:d.title,savedLocally:true,videoRendered:!!edited?.ok,videoFormat:edited?.format||null,bytes:edited?.bytes||0,graphicsOnly:!!edited?.graphicsOnly,published:false,needsOriginalMedia:d.needsMedia,note:edited?.ok?'Video file generated. Review the actual result in Reel Studio; approval is required before any upload.':'Actual video render did not finish: '+(edited?.error||'unsupported browser or unavailable media')};
+   }else if(fc.name==='upload_reel_media'){
+    if(!window.ReelStudio?.uploadZernio)throw Error('Video editor is unavailable');
+    let st=window.ReelStudio.state?.();
+    if(!st?.result){
+      const draft=window.AttentionAgent?.currentDraft?.();
+      if(!draft)throw Error('No Reel draft exists. Request a Reel first.');
+      const output=await window.ReelStudio.open(draft,{autoSearch:true,autoRender:true});
+      if(!output?.ok)throw Error('Actual video was not rendered: '+(output?.error||'unsupported media encoder'));
+    }
+    const uploaded=await window.ReelStudio.uploadZernio();
+    result=uploaded?.ok?{ok:true,stage:'media-uploaded',videoBytes:uploaded.bytes,mediaUrl:uploaded.mediaUrl,publiclyPosted:false,note:'Real MP4 uploaded into Zernio media library, NOT Instagram published.'}:{ok:false,error:uploaded?.error||'Upload was not approved or failed',publiclyPosted:false};
+   }else if(fc.name==='publish_instagram_now'){
+    if(!window.AttentionAgent?.publishCurrentNow)throw Error('Instagram publish workflow missing');
+    const response=await window.AttentionAgent.publishCurrentNow('caption '+String(fc.args?.caption||'').slice(0,2000));
+    result=response?.ok?{ok:true,platformAccepted:true,postId:response.postId||null,finalDeliveryVerified:false,note:'Owner approved sending immediate publishing request to Zernio, but Instagram final publication status is not yet verified.'}:{ok:false,error:response?.error||'Owner cancelled or media missing',posted:false};
    }else if(fc.name==='review_instagram_post'){
     if(!window.AttentionAgent?.reviewPost)throw Error('Instagram review panel is unavailable');
     const d=window.AttentionAgent.reviewPost('caption '+String(fc.args?.caption||'').slice(0,2200));
