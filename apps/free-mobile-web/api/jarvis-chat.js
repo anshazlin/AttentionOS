@@ -34,7 +34,7 @@ module.exports=async (req,res)=>{
  if(!prompt)return bad(res,400,"Please say or type a message.");
  // Local, deterministic greetings: instant responses without making a costly AI call.
  // This is intentionally not reported as generated intelligence or an executed action.
- const greeting=safe(prompt,90).toLowerCase().replace(/[.!?,]+/g,"").replace(/\\s+/g," ").trim();
+ const greeting=safe(prompt,90).toLowerCase().replace(/[.!?,]+/g,"").replace(/\s+/g," ").trim();
  if(/^(?:hi|hello|hey|heya|hey jarvis|hello jarvis|jarvis|good morning|good afternoon|good evening|good night|hi jarvis)$/i.test(greeting)){
   const response=/night/.test(greeting)?"Good night, Master. I'll be here when you need me.":"At your service, Master. What would you like me to do?";
   return res.status(200).json({ok:true,reply:response,action:"none",draft:null,topic:"",model:"local-greeting",source:"local"});
