@@ -5,7 +5,15 @@ const {execFileSync}=require('node:child_process');
 const puppeteer=require('puppeteer-core'),ffprobe=require('ffprobe-static');
 (async()=>{
  const input='/tmp/attentionos-real-render.webm';
- assert.ok(fs.existsSync(input),'Run browser-video.cjs first to record actual WebM');
+ if(!fs.existsSync(input)){
+  // Modern Chrome can natively encode MP4. Generate a genuine WebM from that
+  // actual captured MP4 to exercise the FFmpeg WASM path used on older phones.
+  const source='/tmp/attentionos-real-render.mp4';
+  assert.ok(fs.existsSync(source),'Run browser-video.cjs before the MP4 fallback test');
+  const ffmpeg=process.env.FFMPEG_BIN||'/usr/bin/ffmpeg';
+  assert.ok(fs.existsSync(ffmpeg),'An actual ffmpeg binary is required to prepare the compatibility fixture');
+  execFileSync(ffmpeg,['-v','error','-y','-i',source,'-an','-c:v','libvpx','-b:v','550k','-t','12',input],{timeout:90000});
+ }
  const original=fs.readFileSync(input);
  assert.ok(original.length>10000,'Recorded input WebM was empty');
  const bin=['/usr/bin/google-chrome','/usr/bin/chromium'].find(p=>fs.existsSync(p));
