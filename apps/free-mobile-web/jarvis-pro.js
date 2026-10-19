@@ -55,8 +55,10 @@ async function execute(d,original){
    if(!window.ReelStudio?.open)throw Error('The automatic video editor failed to load. Refresh the page.');
    status('Researching licensed visuals and generating an actual video...');
    const prepared=await window.AttentionAgent.makeDraft(d.topic);
-   window.ReelStudio.open(prepared.idea||{title:prepared.title,caption:prepared.caption},{autoSearch:true,autoRender:true});
-   return 'I have started the automatic video editor for "'+prepared.title+'", Master. It is sourcing usable images and rendering a 12-second vertical Reel in the Video Studio. Check the result before publishing; nothing has been uploaded or posted yet.';
+   const output=await window.ReelStudio.open(prepared.idea||{title:prepared.title,caption:prepared.caption},{autoSearch:true,autoRender:true});
+   if(!output?.ok)return 'Video NOT completed, Master. I prepared a draft, but the editor failed: '+(output?.error||'No usable encoder was available')+'. Open Reel Studio for details. Nothing was uploaded or posted.';
+   if(output.format!=='mp4')return 'A real '+output.format.toUpperCase()+' video was generated, Master ('+Math.round(output.bytes/1024)+' KB), but Instagram requires MP4. Automatic MP4 conversion was unavailable on this device. You can download the original video and review it in Reel Studio. Nothing was published.';
+   return 'I generated an actual 12-second MP4, Master ('+Math.round(output.bytes/1024)+' KB). '+(output.graphicsOnly?'It uses original motion graphics because no licensed product photos were available; it does not show a real product. ':'It uses selected licensed or owner-supplied images. ')+'Review the video in Reel Studio, then choose Upload MP4 to Zernio. Nothing has been posted.';
  }
  case 'review_post':{
    if(!window.AttentionAgent?.reviewPost)throw Error('Publishing review is unavailable.');
