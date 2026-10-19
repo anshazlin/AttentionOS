@@ -25,6 +25,13 @@ async function pexels(query,signal){
  }).filter(x=>x.src);
  return [...videos,...photos];
 }
+async function commonsPublicDomainFrame(signal){
+ const params=new URLSearchParams({action:"query",titles:"File:Digitalframe.jpg",prop:"imageinfo",iiprop:"url|extmetadata",iiurlwidth:"960",format:"json",formatversion:"2"});
+ const d=await jsonFetch("https://commons.wikimedia.org/w/api.php?"+params,{},signal);
+ const ii=d.query?.pages?.[0]?.imageinfo?.[0],license=clean(ii?.extmetadata?.LicenseShortName?.value||"",110),src=mediaAddress(ii?.thumburl||ii?.url);
+ if(!src||!validLicense(license))return [];
+ return [{id:"commons-pd-digitalframe",kind:"image",src,preview:src,title:"Public-domain example of a digital photo frame",credit:"Ewigmkt · Wikimedia Commons",source:"https://commons.wikimedia.org/wiki/File:Digitalframe.jpg",license,stock:true,exactProduct:false}];
+}
 async function commons(query,signal){
  const params=new URLSearchParams({action:"query",generator:"search",gsrsearch:query,gsrnamespace:"6",gsrlimit:"40",prop:"imageinfo",iiprop:"url|extmetadata",iiurlwidth:"960",format:"json",formatversion:"2"});
  const data=await jsonFetch("https://commons.wikimedia.org/w/api.php?"+params,{},signal);
@@ -61,6 +68,9 @@ module.exports=async (req,res)=>{
     try{items.push(...await commons(term,ctrl.signal));via.push("Wikimedia Commons")}catch(e){errors.push("Wikimedia Commons: "+e.message)}
     if(items.length>=10)break;
    }
+  }
+  if(!items.length && /digital\s*(?:photo|picture)?\s*frame/i.test(q)){
+   try{items.push(...await commonsPublicDomainFrame(ctrl.signal));via.push('Wikimedia Commons (public-domain fallback)')}catch(e){errors.push('Fallback photo unavailable: '+e.message)}
   }
   const seen=new Set();items=items.filter(x=>!seen.has(x.src)&&(seen.add(x.src),true)).slice(0,16);
   return res.status(200).json({ok:true,query:q,items,providers:[...new Set(via)],warnings:errors,notice:"These are licensed illustrative images/videos, NOT confirmed photos of the exact product. Verify product match before promotional publishing; preserve attribution for CC BY material."});
