@@ -4,6 +4,7 @@ const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const {execFileSync}=require('node:child_process');
 const puppeteer=require('puppeteer-core');
+const ffprobe=require('ffprobe-static');
 (async()=>{
  const candidates=[process.env.CHROME_BIN,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'];
  const executablePath=candidates.find(v=>v&&fs.existsSync(v));
@@ -35,7 +36,7 @@ const puppeteer=require('puppeteer-core');
   assert.ok(bytes.length>10000,'Encoded video was smaller than expected');
   const path='/tmp/attentionos-real-render.'+result.output.format;
   fs.writeFileSync(path,bytes);
-  const meta=JSON.parse(execFileSync('ffprobe',['-v','error','-show_entries','format=duration:stream=codec_name,width,height','-of','json',path],{encoding:'utf8',timeout:15000}));
+  const meta=JSON.parse(execFileSync(ffprobe.path,['-v','error','-show_entries','format=duration:stream=codec_name,width,height','-of','json',path],{encoding:'utf8',timeout:15000}));
   const video=(meta.streams||[]).find(x=>x.width&&x.height);
   assert.ok(video&&video.width===540&&video.height===960,'Not a valid 9:16 540x960 video');
   const duration=Number(meta.format?.duration);
