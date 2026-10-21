@@ -1,0 +1,28 @@
+name: Verify AttentionOS connection endpoint
+on:
+  push:
+    branches: [chatgpt-plus-codex-mobile]
+    paths: ['.github/workflows/attentionos-api-smoke.yml']
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify API returns JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl -sS --max-time 15 -o /tmp/attentionos-status.json -w '%{http_code}' 'https://attentionos-free-mobile.vercel.app/api/zernio?action=status')"
+          echo "HTTP: $status"
+          echo "Content preview:"
+          head -c 250 /tmp/attentionos-status.json
+          echo
+          STATUS="$status" python3 - <<'PY'
+          import json,os
+          assert os.environ['STATUS']=='200', 'Expected HTTP 200'
+          with open('/tmp/attentionos-status.json') as f: data=json.load(f)
+          assert data.get('ok') or data.get('success'), 'Unexpected JSON structure'
+          print("PASSED: Zernio status API returns valid JSON")
+          print("Configured:",bool(data.get('connected') or data.get('configured')))
+          PY

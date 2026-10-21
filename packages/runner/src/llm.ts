@@ -19,6 +19,7 @@ import {
   type RunResult,
 } from "./context.ts";
 import { claudeCliQuery } from "./claude-cli.ts";
+import { codexCliQuery } from "./codex-cli.ts";
 import { RunnerError } from "./errors.ts";
 import { EventSink, truncate } from "./events.ts";
 import { resolveModel } from "./models.ts";
@@ -191,6 +192,10 @@ export async function runLlmJob(ws: WorkspaceContext, job: LlmJob, input: unknow
   const parsed = parseInput(job, input);
   const engine = ws.config.runner.engine;
   const preflight = async (): Promise<{ apiKey: string | null; capUsd: number; query: QueryFn }> => {
+    if (engine === "codex") {
+      const bin = ws.config.runner.codexBin ?? "codex";
+      return { apiKey: null, capUsd: 0, query: opts.query ?? codexCliQuery({ bin }) };
+    }
     if (engine === "claude-code") {
       const bin = ws.config.runner.claudeBin ?? ws.secret("CLAUDE_BIN") ?? "claude";
       return { apiKey: null, capUsd: 0, query: opts.query ?? claudeCliQuery({ bin }) };

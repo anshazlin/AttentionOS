@@ -1,0 +1,29 @@
+name: Verify free licensed-media availability
+on:
+  push:
+    branches: [chatgpt-plus-codex-mobile]
+    paths: [.github/workflows/creative-media-real-source.yml]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wikimedia public-domain digital frame source
+        run: |
+          node <<'NODE'
+          const url=new URL('https://commons.wikimedia.org/w/api.php');
+          url.search=new URLSearchParams({
+            action:'query',titles:'File:Digitalframe.jpg',
+            prop:'imageinfo',iiprop:'url|extmetadata',
+            iiurlwidth:'960',format:'json',formatversion:'2'
+          });
+          const response=await fetch(url,{headers:{'User-Agent':'AttentionOS/1.0 (private brand license verification)','Accept':'application/json'},signal:AbortSignal.timeout(15000)});
+          console.log('Commons status:',response.status);
+          if(!response.ok)throw Error('Commons unavailable from cloud runner: HTTP '+response.status);
+          const data=await response.json(),asset=data.query?.pages?.[0]?.imageinfo?.[0];
+          const license=asset?.extmetadata?.LicenseShortName?.value;
+          const photo=asset?.thumburl||asset?.url;
+          if(!license||!photo||!/public domain|CC0/i.test(license))throw Error('No verified public domain digital frame source found');
+          console.log('PASS live metadata:',license,photo.slice(0,120));
+          NODE

@@ -1,0 +1,5 @@
+# Install with requirements.txt, PyTorch for your hardware, and OmniVoice source.
+# Offline source archive supplied by the project owner may be used instead of Git.
+# python -m pip install git+https://github.com/k2-fsa/OmniVoice.git
+# Or: python -m pip install -e /path/to/OmniVoice-master
+# The OmniVoice PRETRAINED MODEL WEIGHTS ARE CC BY-NC; NOT FOR COMMERCIAL CONTENT.

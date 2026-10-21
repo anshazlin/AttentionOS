@@ -1,0 +1,69 @@
+name: AttentionOS mobile JS checks
+on:
+  push:
+    branches: [chatgpt-plus-codex-mobile]
+    paths:
+      - 'apps/free-mobile-web/**'
+      - '.github/workflows/attentionos-mobile-check.yml'
+  workflow_dispatch:
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check browser, API, and inline JS
+        run: |
+          node --check apps/free-mobile-web/app.js
+          for f in apps/free-mobile-web/lib/*.js apps/free-mobile-web/api/aos.js apps/free-mobile-web/api/cron.js; do node --check "$f"; done
+          node --check apps/free-mobile-web/agent.js
+          node --check apps/free-mobile-web/api/agent.js
+          node --check apps/free-mobile-web/api/zernio.js
+          node --check apps/free-mobile-web/api/jarvis-chat.js
+          node --check apps/free-mobile-web/api/jarvis-live.js
+          node --check apps/free-mobile-web/jarvis-pro.js
+          node --check apps/free-mobile-web/jarvis-live.js
+          node --check apps/free-mobile-web/jarvis-wake.js
+          node --check apps/free-mobile-web/voice-provider.js
+          node --check apps/free-mobile-web/jarvis-ui-clean.js
+          node --check apps/free-mobile-web/reel-studio.js
+          node --check apps/free-mobile-web/reel-transcoder.js
+          node --check apps/free-mobile-web/api/creative-video.js
+          node --check apps/free-mobile-web/api/creative-media.js
+          node --check apps/free-mobile-web/api/creative-image.js
+          node --check apps/free-mobile-web/api/voice.js
+          python3 -m py_compile services/voice/server.py
+          node - <<'NODE'
+          const fs=require('node:fs'),vm=require('node:vm');
+          const html=fs.readFileSync('apps/free-mobile-web/index.html','utf8');
+          const blocks=[...html.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/gi)];
+          for(const [i,b] of blocks.entries())if(b[1].trim()){new vm.Script(b[1],{filename:'inline-'+i+'.js'});}
+          if(!html.includes('src="/app.js"'))throw Error('App script tag missing');
+          console.log('OK: '+blocks.length+' script blocks checked');
+          NODE
+      - name: Test voice privacy, commercial routing and simulated WAV (no pretrained model calls)
+        run: node apps/free-mobile-web/test/voice-smoke.cjs
+      - name: Licensed-media sourcing and safe image proxy tests
+        run: node apps/free-mobile-web/test/creative-media.cjs
+      - name: Licensed video clip search and safe media proxy tests (mocked)
+        run: node apps/free-mobile-web/test/creative-video.cjs
+      - name: Mock API smoke tests (no Instagram publishing)
+        run: node apps/free-mobile-web/test/api-smoke.cjs
+      - name: Mock Gemini intelligence and Live tokens (no paid calls)
+        run: node apps/free-mobile-web/test/jarvis-smoke.cjs
+      - name: Agent pipeline logic, approval gate and safety checks (in-memory DB, stubbed providers)
+        run: node apps/free-mobile-web/test/aos-pipeline.cjs
+      - name: Real Chrome UI test at desktop and Android widths (API mocked)
+        run: |
+          npm install --prefix /tmp/attentionos-browsercheck --no-save --silent playwright@1.56 puppeteer-core@24 jsdom@27 ffprobe-static@3
+          CHROME_BIN="$(command -v google-chrome || command -v chromium)" NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/aos-ui.cjs
+      - name: Encode and verify an ACTUAL 12-second Reel in headless Chrome
+        run: |
+          npm install --prefix /tmp/attentionos-browsercheck --no-save --silent puppeteer-core@24 jsdom@27 ffprobe-static@3
+          command -v google-chrome || command -v chromium
+          python3 -m http.server 8878 --bind 127.0.0.1 --directory apps/free-mobile-web >/tmp/attentionos-video-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          sleep 2
+          CHROME_BIN="$(command -v google-chrome || command -v chromium)" NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/browser-video.cjs

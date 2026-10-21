@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0c0e">
+<title>AttentionOS</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<input id="ownerToken" type="hidden" autocomplete="off">
+<div class="shell">
+  <nav class="nav" aria-label="Primary" id="nav"></nav>
+  <main class="main" id="main" tabindex="-1"></main>
+</div>
+<form class="jarvis" id="jarvis" autocomplete="off">
+  <p class="jarvis-reply" id="jarvisReply" role="status" aria-live="polite"></p>
+  <div class="jarvis-bar">
+    <button type="button" class="icon-btn" id="micBtn" aria-label="Speak to JARVIS" title="Speak to JARVIS"></button>
+    <input id="jarvisInput" class="jarvis-input" type="text" placeholder="Tell JARVIS what to do" aria-label="Command for JARVIS" maxlength="300" enterkeyhint="send">
+    <button class="btn primary" id="jarvisSend" type="submit">Run</button>
+  </div>
+</form>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script defer src="/reel-transcoder.js"></script>
+<script defer src="/reel-studio.js"></script>
+<script defer src="/app.js"></script>
+</body>
+</html>

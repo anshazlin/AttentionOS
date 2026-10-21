@@ -1,0 +1,71 @@
+name: Verify public AttentionOS API routing
+on:
+  push:
+    branches: [chatgpt-plus-codex-mobile]
+    paths: ['.github/workflows/attentionos-live-api-check.yml']
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check production HTTP endpoints without secrets
+        env:
+          HOST: https://attentionos-free-mobile.vercel.app
+        run: |
+          python3 - <<'PY'
+          import os,json,time,urllib.request,urllib.error
+          host=os.environ['HOST']
+          checks=[
+            ('/api/jarvis-chat',200,'json','configured'),
+            ('/api/jarvis-live',405,'json','error'),
+            ('/api/agent',405,'json','error'),
+            ('/api/zernio?action=status',200,'json','connected'),
+            ('/agent.js',200,'javascript',''),
+            ('/',200,'html','')
+          ]
+          for route,code,kind,field in checks:
+            last=''
+            for attempt in range(4):
+              try:
+                with urllib.request.urlopen(urllib.request.Request(host+route,headers={'User-Agent':'AttentionOS-safe-health-check'}),timeout=16) as r:
+                  status=r.status;data=r.read(200000);ctype=r.headers.get('Content-Type','')
+              except urllib.error.HTTPError as e:
+                status=e.code;data=e.read(200000);ctype=e.headers.get('Content-Type','')
+              except Exception as e:
+                status=0;data=b'';ctype='';last=str(e)
+              ok=status==code
+              if kind=='json':
+                try:
+                  j=json.loads(data)
+                  ok=ok and field in j and 'json' in ctype.lower()
+                  if field in ('configured','connected'):ok=ok and j[field] is True
+                  if route=='/api/jarvis-chat':ok=ok and j.get('model')=='gemini-3.8-flash'
+                except: ok=False
+              elif kind=='javascript':ok=ok and ('javascript' in ctype.lower() or data.strip().startswith(b'(function')) and b'planFor' in data and b'publishNow' in data
+              elif kind=='html':ok=ok and (b'<html' in data.lower()) and b'Start JARVIS call' in data and b'runToolCalls' in data
+              if ok:break
+              last=f'status={status} content-type={ctype} sample={data[:160]!r}'
+              time.sleep(5)
+            print(f'{route}: expected HTTP {code} {kind}, actual HTTP {status} {ctype}, valid={ok}')
+            if not ok:raise SystemExit(f'FAIL: {route} {last}')
+          for route in ['/api/jarvis-chat','/api/jarvis-live','/api/agent']:
+            req=urllib.request.Request(host+route,data=b'{}',headers={'Content-Type':'application/json'},method='POST')
+            try:
+              with urllib.request.urlopen(req,timeout=16) as response:
+                status=response.status;raw=response.read()
+            except urllib.error.HTTPError as e:
+              status=e.code;raw=e.read()
+            try: answer=json.loads(raw)
+            except Exception: answer={}
+            print(f'{route} without owner token: HTTP {status}, JSON error={bool(answer.get("error"))}')
+            if status!=401 or not answer.get('error'):raise SystemExit('FAIL: protected POST did not reject unauthorized request with JSON')
+          with urllib.request.urlopen(host+'/', timeout=20) as response:
+            page=response.read().decode('utf-8','replace')
+          if 'window.JARVISWake=' not in page or 'Enable hands-free' not in page:
+            raise SystemExit('FAIL: JARVISWake in deployed HTML is missing')
+          print('PASS: JARVISWake in deployed HTML, hands-free permission control available.')
+          print('PASS: routing, AI credentials configured, unauthorized POST rejected, frontend served.')
+          PY
