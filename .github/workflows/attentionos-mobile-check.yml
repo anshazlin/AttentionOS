@@ -15,6 +15,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Syntax check browser, API, and inline JS
         run: |
+          node --check apps/free-mobile-web/app.js
+          for f in apps/free-mobile-web/lib/*.js apps/free-mobile-web/api/aos.js apps/free-mobile-web/api/cron.js; do node --check "$f"; done
           node --check apps/free-mobile-web/agent.js
           node --check apps/free-mobile-web/api/agent.js
           node --check apps/free-mobile-web/api/zernio.js
@@ -37,7 +39,7 @@ jobs:
           const html=fs.readFileSync('apps/free-mobile-web/index.html','utf8');
           const blocks=[...html.matchAll(/<script(?:\s+[^>]*)?>([\s\S]*?)<\/script>/gi)];
           for(const [i,b] of blocks.entries())if(b[1].trim()){new vm.Script(b[1],{filename:'inline-'+i+'.js'});}
-          if(!html.includes('src="/agent.js"'))throw Error('Agent script tag missing');
+          if(!html.includes('src="/app.js"'))throw Error('App script tag missing');
           console.log('OK: '+blocks.length+' script blocks checked');
           NODE
       - name: Test voice privacy, commercial routing and simulated WAV (no pretrained model calls)
@@ -50,10 +52,12 @@ jobs:
         run: node apps/free-mobile-web/test/api-smoke.cjs
       - name: Mock Gemini intelligence and Live tokens (no paid calls)
         run: node apps/free-mobile-web/test/jarvis-smoke.cjs
-      - name: Browser boot check — legacy button opens real JARVIS
+      - name: Agent pipeline logic, approval gate and safety checks (in-memory DB, stubbed providers)
+        run: node apps/free-mobile-web/test/aos-pipeline.cjs
+      - name: Real Chrome UI test at desktop and Android widths (API mocked)
         run: |
-          npm install --prefix /tmp/attentionos-browsercheck --no-save --silent jsdom@27
-          NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/jarvis-browser.cjs
+          npm install --prefix /tmp/attentionos-browsercheck --no-save --silent playwright@1.56 puppeteer-core@24 jsdom@27 ffprobe-static@3
+          CHROME_BIN="$(command -v google-chrome || command -v chromium)" NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/aos-ui.cjs
       - name: Encode and verify an ACTUAL 12-second Reel in headless Chrome
         run: |
           npm install --prefix /tmp/attentionos-browsercheck --no-save --silent puppeteer-core@24 jsdom@27 ffprobe-static@3
@@ -62,8 +66,4 @@ jobs:
           server_pid=$!
           trap 'kill $server_pid 2>/dev/null || true' EXIT
           sleep 2
-          NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/browser-video.cjs
-      - name: Test JARVIS tool outcomes (no real Instagram posting)
-        run: NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/action-flow.cjs
-      - name: Simulated hands-free Gemini Live call and tool execution
-        run: NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/jarvis-live-call.cjs
+          CHROME_BIN="$(command -v google-chrome || command -v chromium)" NODE_PATH=/tmp/attentionos-browsercheck/node_modules node apps/free-mobile-web/test/browser-video.cjs
